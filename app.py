@@ -19,10 +19,28 @@ from reportlab.lib.enums import TA_CENTER
 TG_LINK = "https://t.me/MurlidharAcademy"
 IG_LINK = "https://www.instagram.com/murlidhar_academy_official/"
 
-# ✅ Google Drive Image IDs
-DEFAULT_DRIVE_ID = "1a1ZK5uiLl0a63Pto1EQDUY0VaIlqp21u"  # Background
-SIGNATURE_ID = "1U0es4MVJgGniK27rcrA6hiLFFRazmwCs"      # Director Sign (JPG)
-LOGO_ID = "1BGvxglcgZ2G6FdVelLjXZVo-_v4e4a42"           # Academy Logo (JPG)
+# ✅ Google Drive Image IDs (JPGs)
+DEFAULT_DRIVE_ID = "1a1ZK5uiLl0a63Pto1EQDUY0VaIlqp21u"
+SIGNATURE_ID = "1U0es4MVJgGniK27rcrA6hiLFFRazmwCs"
+LOGO_ID = "1BGvxglcgZ2G6FdVelLjXZVo-_v4e4a42"
+
+# ==========================================
+# 🎛️ CERTIFICATE LAYOUT CONFIGURATION (SET HERE)
+# ==========================================
+
+# 1. LOGO SETTINGS
+CERT_LOGO_WIDTH = 35 * mm       # લોગોની પહોળાઈ (Size)
+CERT_LOGO_HEIGHT = 35 * mm      # લોગોની ઊંચાઈ
+CERT_LOGO_X_POS = 40 * mm       # લોગો ડાબી બાજુથી કેટલો દૂર રાખવો
+CERT_LOGO_Y_POS = 152 * mm      # લોગો નીચેથી કેટલો ઉપર રાખવો (Vertically)
+
+# 2. SIGNATURE SETTINGS
+CERT_SIGN_WIDTH = 60 * mm       # સહીની સાઈઝ (પહોળાઈ)
+CERT_SIGN_HEIGHT = 22 * mm      # સહીની ઊંચાઈ
+CERT_SIGN_X_POS = 235 * mm      # સહીની પોઝિશન (Center Point of Signature Block)
+CERT_SIGN_Y_POS = 38 * mm       # સહી નીચેથી કેટલી ઉપર રાખવી
+
+# ==========================================
 
 LEFT_MARGIN_mm = 18
 RIGHT_MARGIN_mm = 18
@@ -139,7 +157,7 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
 
     awards_to_give = [] 
 
-    # --- AWARD LOGIC WITH DETAILED DESCRIPTIONS ---
+    # Award Logic
     rank1 = out_df[out_df['Rank'] == 1]
     for _, r in rank1.iterrows():
         desc = f"The Batch Topper (Rank 1). Awarded for ruling the result sheet with the highest score and supreme excellence. [Score: {r['Obtained']}/{r['Total Marks']}]"
@@ -186,28 +204,22 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
         c.setLineWidth(1); c.rect(18*mm, 18*mm, width-36*mm, height-36*mm)
 
         # ----------------------------------------------------
-        # HEADER SECTION (Logo + Text Side-by-Side)
+        # HEADER SECTION (Centered Text, Left Logo)
         # ----------------------------------------------------
-        
-        # Center of the page horizontally
         center_x = width / 2
         
-        # Logo Position (Left of Text)
-        # Adjusted Y to avoid overlap with border
+        # LOGO (Using Config Coordinates)
         if logo_img:
-            logo_w, logo_h = 28*mm, 28*mm
-            # Placed at center - 95mm (Left side)
-            c.drawImage(logo_img, center_x - 95*mm, height - 50*mm, width=logo_w, height=logo_h, mask='auto', preserveAspectRatio=True)
+            c.drawImage(logo_img, CERT_LOGO_X_POS, CERT_LOGO_Y_POS, width=CERT_LOGO_WIDTH, height=CERT_LOGO_HEIGHT, mask='auto', preserveAspectRatio=True)
 
-        # Academy Name (Centered but slightly offset to right to balance logo)
+        # Header Text (Centered)
         c.setFont("Helvetica-Bold", 32)
         c.setFillColor(COLOR_BLUE_HEADER)
-        # Adjusted Y down to match Logo center
-        c.drawCentredString(center_x + 10*mm, height - 42*mm, "MURLIDHAR ACADEMY")
+        c.drawCentredString(center_x, height - 52*mm, "MURLIDHAR ACADEMY")
         
         c.setFont("Helvetica", 12)
         c.setFillColor(colors.black)
-        c.drawCentredString(center_x + 10*mm, height - 50*mm, "JUNAGADH")
+        c.drawCentredString(center_x, height - 60*mm, "JUNAGADH")
 
         # Titles
         c.setFont("Helvetica-Oblique", 18)
@@ -242,7 +254,7 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
         p.drawOn(c, (width - w)/2, height - 150*mm)
 
         # ----------------------------------------------------
-        # BOTTOM SECTION (Signature)
+        # BOTTOM SECTION (Signature & Date)
         # ----------------------------------------------------
         
         # DATE (Left)
@@ -250,16 +262,26 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
         c.setFillColor(colors.black)
         c.drawString(30*mm, 35*mm, f"Date: {cert_date}")
         
-        # SIGNATURE IMAGE (Moved Left)
-        # Old X was width-85mm. New X is width-95mm to move it left.
+        # SIGNATURE BLOCK (Centered on CERT_SIGN_X_POS)
+        
+        # 1. Signature Image
         if sign_img:
-            sign_w, sign_h = 70*mm, 25*mm 
-            c.drawImage(sign_img, width - 95*mm, 36*mm, width=sign_w, height=sign_h, mask='auto', preserveAspectRatio=True)
+            # Draw image centered at CERT_SIGN_X_POS
+            img_x = CERT_SIGN_X_POS - (CERT_SIGN_WIDTH / 2)
+            c.drawImage(sign_img, img_x, CERT_SIGN_Y_POS, width=CERT_SIGN_WIDTH, height=CERT_SIGN_HEIGHT, mask='auto', preserveAspectRatio=True)
 
-        # Line & Text
+        # 2. Line
+        line_width = 50*mm
+        line_start_x = CERT_SIGN_X_POS - (line_width / 2)
+        line_end_x = CERT_SIGN_X_POS + (line_width / 2)
+        line_y = 35*mm
+        
         c.setLineWidth(1)
-        c.line(width - 80*mm, 35*mm, width - 30*mm, 35*mm) 
-        c.drawCentredString((width - 80*mm + width - 30*mm)/2, 29*mm, "Director Signature")
+        c.setStrokeColor(colors.black)
+        c.line(line_start_x, line_y, line_end_x, line_y)
+        
+        # 3. Text
+        c.drawCentredString(CERT_SIGN_X_POS, 29*mm, "Director Signature")
 
         c.showPage()
 
@@ -271,7 +293,6 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
 st.set_page_config(page_title="Murlidhar Academy Report System", page_icon="🎓", layout="centered")
 st.title("🎓 Murlidhar Academy Report System")
 
-# Load Images silently
 if 'default_bg_data' not in st.session_state:
     st.session_state['default_bg_data'] = download_image_from_drive(DEFAULT_DRIVE_ID)
 if 'logo_data' not in st.session_state:
@@ -296,7 +317,6 @@ summary_page_title = st.text_input("Summary Page Title", "SUMMARY & ANALYSIS OF 
 uploaded_files = st.file_uploader("Upload CSV Files", type=['csv'], accept_multiple_files=True)
 
 if uploaded_files:
-    # 1. PROCESS DATA
     per_file_data = []
     for uploaded_file in uploaded_files:
         try:
@@ -305,11 +325,9 @@ if uploaded_files:
             file_max = find_possible_pts(df)
             names = find_name_series(df)
             obtained = extract_obtained_series(df)
-            
             if file_max is None:
                 file_max = obtained.max() if not obtained.empty else DEFAULT_TEST_MAX_PER_FILE
                 if file_max == 0: file_max = DEFAULT_TEST_MAX_PER_FILE
-            
             name_map = {}
             present_set = set()
             for n, score in zip(names, obtained):
