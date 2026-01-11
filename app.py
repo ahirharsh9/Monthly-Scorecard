@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
-from reportlab.platypus import Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.utils import ImageReader
 
@@ -137,7 +137,6 @@ if 'default_bg_data' not in st.session_state:
 
 with st.sidebar:
     st.header("🎨 Color Grading Rules")
-    # ✅ Updated Defaults: 70 and 40
     thresh_green = st.number_input("Green Zone (Excellent >= %)", min_value=0, max_value=100, value=70)
     thresh_yellow = st.number_input("Yellow Zone (Average >= %)", min_value=0, max_value=100, value=40)
     st.markdown("---")
@@ -268,10 +267,7 @@ if uploaded_files:
                 data_rows.append(row)
 
             total_pages_main = math.ceil(len(data_rows) / ROWS_PER_PAGE)
-            # Estimate pages: Main + Summary + Hall of Fame (could be 1 or 2 pages)
-            # We'll just calculate total pages at the end or use placeholders.
-            # Simple approach: main + 2 fixed
-            total_pages_approx = total_pages_main + 2
+            total_pages_approx = total_pages_main + 2 # Approx
             
             TABLE_TOP_Y = PAGE_H - (TITLE_Y_mm_from_top * mm) - (TABLE_SPACE_AFTER_TITLE_mm * mm)
 
@@ -411,7 +407,7 @@ if uploaded_files:
                 names_str = "<br/>".join(rank1['Name'].tolist())
                 awards_list.append([
                     mk_para("Vikramaditya Excellence Award", style_award_name),
-                    mk_para("For Highest Score (Rank 1). The King of the batch.", style_desc),
+                    mk_para("The Batch Topper (Rank 1). Awarded for ruling the result sheet with the highest score and supreme excellence.", style_desc),
                     mk_para(names_str, style_winner)
                 ])
             
@@ -421,7 +417,7 @@ if uploaded_files:
                 names_str = "<br/>".join(rank2['Name'].tolist())
                 awards_list.append([
                     mk_para("Chanakya Niti Award", style_award_name),
-                    mk_para("For Outstanding Intelligence & Strategy (Rank 2).", style_desc),
+                    mk_para("The Intellectual Strategist (Rank 2). Awarded for sharp intelligence and securing the second-highest position.", style_desc),
                     mk_para(names_str, style_winner)
                 ])
             
@@ -431,7 +427,7 @@ if uploaded_files:
                 names_str = "<br/>".join(rank3['Name'].tolist())
                 awards_list.append([
                     mk_para("Arjuna Focus Award", style_award_name),
-                    mk_para("For Unwavering Focus & Precision (Rank 3).", style_desc),
+                    mk_para("The Focused Archer (Rank 3). Awarded for unwavering focus, precision, and hitting the target score.", style_desc),
                     mk_para(names_str, style_winner)
                 ])
 
@@ -441,50 +437,50 @@ if uploaded_files:
                  names_str = "<br/>".join(rank45['Name'].tolist())
                  awards_list.append([
                     mk_para("Dhruva Tara Award", style_award_name),
-                    mk_para("Consistently Shining Star (Rank 4 & 5).", style_desc),
+                    mk_para("The Shining Stars (Rank 4 & 5). Awarded for maintaining a high position consistently like the eternal Pole Star.", style_desc),
                     mk_para(names_str, style_winner)
                 ])
 
-            # 5. Karna (Rank 6-10) - NEW
+            # 5. Karna (Rank 6-10)
             rank6_10 = out_df[out_df['Rank'].isin([6,7,8,9,10])]
             if not rank6_10.empty:
                  names_str = "<br/>".join(rank6_10['Name'].tolist())
                  awards_list.append([
                     mk_para("Karna Veerta Award", style_award_name),
-                    mk_para("The Unsung Warriors (Rank 6 to 10). Fighters who just missed the top.", style_desc),
+                    mk_para("The Brave Warriors (Rank 6 to 10). Talented fighters who fought hard and missed the top 5 by a narrow margin.", style_desc),
                     mk_para(names_str, style_winner)
                 ])
 
-            # 6. Angad Stambh (100% Present + Passed + NOT in Top 10) - NEW
-            # Logic: Absent=0, Percentage >= Yellow Threshold, Rank > 10
+            # 6. Angad Stambh
             angad_candidates = out_df[
                 (out_df['Absent'] == 0) & 
                 (out_df['Percentage'] >= thresh_yellow) & 
                 (out_df['Rank'] > 10)
             ]
             if not angad_candidates.empty:
+                 # Limit to top 5 consistent ones to avoid overflow
+                 angad_candidates = angad_candidates.sort_values(by='Obtained', ascending=False).head(5)
                  names_str = "<br/>".join(angad_candidates['Name'].tolist())
                  awards_list.append([
                     mk_para("Angad Stambh Award", style_award_name),
-                    mk_para("Unmovable Consistency. 100% Attendance & Passed in all.", style_desc),
+                    mk_para("The Unmovable Pillar. Awarded for 100% Attendance & Passing All Tests. They stood firm in every exam!", style_desc),
                     mk_para(names_str, style_winner)
                 ])
 
-            # 7. Bhagirath Prayas (Hard Work) - NEW
-            # Logic: Percentage between 40-70, Attendance > 80%, Not in Top 10, Not Angad
-            # To simplify: % >= 40 AND % < 70 AND Attendance > 80%
+            # 7. Bhagirath Prayas
             bhagirath_candidates = out_df[
                 (out_df['Percentage'] >= thresh_yellow) & 
                 (out_df['Percentage'] < thresh_green) &
                 (out_df['Present'] / out_df['Total Tests'] >= 0.8) &
                 (out_df['Rank'] > 10) & 
-                (out_df['Absent'] > 0) # Use Absent>0 to differentiate from Angad
+                (out_df['Absent'] > 0)
             ]
             if not bhagirath_candidates.empty:
+                 bhagirath_candidates = bhagirath_candidates.sort_values(by='Obtained', ascending=False).head(5)
                  names_str = "<br/>".join(bhagirath_candidates['Name'].tolist())
                  awards_list.append([
                     mk_para("Bhagirath Prayas Award", style_award_name),
-                    mk_para("Extraordinary Effort. Regular attendance with improving marks.", style_desc),
+                    mk_para("The Relentless Effort. Awarded for High Attendance (>80%) & Hard Work. Students striving to turn the tide and improve.", style_desc),
                     mk_para(names_str, style_winner)
                 ])
 
@@ -513,9 +509,6 @@ if uploaded_files:
             
             aw_table.setStyle(aw_style)
             w, h = aw_table.wrapOn(c, TABLE_WIDTH, PAGE_H)
-            
-            # Auto-page break logic for awards if list is too long (Simple version: drawing on current page)
-            # Given limited awards, it usually fits on one page.
             aw_table.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
 
             c.setFont("Helvetica-Bold", 8)
