@@ -52,12 +52,12 @@ CERT_SIGN_X_POS = 235 * mm
 CERT_SIGN_Y_POS = 38 * mm       
 
 # 3. CHARACTER IMAGE SETTINGS (Right Side - Background)
-CERT_CHAR_WIDTH = 125 * mm      # Size (Width)
-CERT_CHAR_HEIGHT = 125 * mm     # Size (Height)
+CERT_CHAR_WIDTH = 124 * mm      # Size (Width)
+CERT_CHAR_HEIGHT = 124 * mm     # Size (Height)
 CERT_CHAR_OPACITY = 0.35        # Opacity (0.35 is perfect as per your request)
 
 # 👇👇👇 (અહીંથી પોઝિશન સેટ કરો) 👇👇👇
-CERT_CHAR_MARGIN_RIGHT = 6 * mm   # જમણી બાજુથી કેટલું દૂર રાખવું? (Right Margin)
+CERT_CHAR_MARGIN_RIGHT = 8 * mm   # જમણી બાજુથી કેટલું દૂર રાખવું? (Right Margin)
 CERT_CHAR_MARGIN_TOP = 18 * mm    # ઉપરની બાજુથી કેટલું નીચે રાખવું? (Top Margin)
 
 # (આ ઓટોમેટિક ગણતરી કરશે, તમારે આમાં ફેરફાર કરવાની જરૂર નથી)
