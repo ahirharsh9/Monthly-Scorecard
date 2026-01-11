@@ -3,38 +3,29 @@ import pandas as pd
 import re
 import math
 import io
-import datetime
 import requests
-from PIL import Image
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
-from reportlab.platypus import Table, TableStyle, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import Table, TableStyle
 from reportlab.lib.utils import ImageReader
 
-# ---------------- CONFIG ----------------
+# ------------- CONFIG -------------
 TG_LINK = "https://t.me/MurlidharAcademy"
 IG_LINK = "https://www.instagram.com/murlidhar_academy_official/"
 
-# ✅ Default Google Drive Background Image
-DEFAULT_DRIVE_ID = "1a1ZK5uiLl0a63Pto1EQDUY0VaIlqp21u"
+# ✅ Google Drive Image ID
+DEFAULT_DRIVE_ID = "1X-L2J7D5-VLJka9x_XKMI8ZKoLd4iJsF" 
 
-LEFT_MARGIN_mm = 18
-RIGHT_MARGIN_mm = 18
 TITLE_Y_mm_from_top = 63.5
 TABLE_SPACE_AFTER_TITLE_mm = 16
+LEFT_MARGIN_mm = 18
+RIGHT_MARGIN_mm = 18
 PAGE_NO_Y_mm = 8
 ROWS_PER_PAGE = 23
-DEFAULT_TEST_MAX_PER_FILE = 50.0
 
-# Soft Professional Palette
-SOFT_GREEN  = colors.HexColor("#DFF6E8")  # Excellent
-SOFT_AMBER  = colors.HexColor("#FFF6DF")  # Average
-SOFT_CORAL  = colors.HexColor("#FFEFEF")  # Needs Improvement
-
-# ---------------- HELPERS ----------------
+# ------------- HELPERS -------------
 def get_drive_url(file_id):
     return f'https://drive.google.com/uc?export=download&id={file_id}'
 
@@ -42,347 +33,400 @@ def get_drive_url(file_id):
 def download_default_bg(file_id):
     try:
         url = get_drive_url(file_id)
-        response = requests.get(url, allow_redirects=True)
+        response = requests.get(url)
         if response.status_code == 200:
-            try:
-                img = Image.open(io.BytesIO(response.content))
-                img.verify()
-                return io.BytesIO(response.content)
-            except Exception:
-                return None
+            return io.BytesIO(response.content)
         else:
             return None
     except:
         return None
 
-def normalize_name(s):
-    if pd.isna(s): return ""
-    s = str(s).strip()
-    s = re.sub(r'\s+', ' ', s)
-    return s.lower()
+def detect_earned_cols(cols):
+    mapping = {}
+    for c in cols:
+        m = re.search(r'earned\s*pt[_\-\s]?(\d{1,3})$', str(c), re.I) \
+            or re.search(r'earnedpt[_\-\s]?(\d{1,3})$', str(c), re.I) \
+            or re.search(r'earned[_\-\s]?(\d{1,3})$', str(c), re.I)
+        if m:
+            mapping[c] = int(m.group(1))
+    return [k for k,_ in sorted(mapping.items(), key=lambda kv: kv[1])], mapping
 
-def find_name_series(df):
-    cols = list(df.columns)
-    lc = [c.lower() for c in cols]
-    if 'firstname' in lc and 'lastname' in lc:
-        fn = df[cols[lc.index('firstname')]].astype(str).fillna("")
-        ln = df[cols[lc.index('lastname')]].astype(str).fillna("")
-        return (fn.str.strip() + " " + ln.str.strip()).astype(str)
+def sanitize_df(df):
+    keep = []
+    for c in df.columns:
+        low = c.lower()
+        if any(x in low for x in ['first','last','name','student','earned','possible','date','roll','id']):
+            keep.append(c)
+        else:
+            vals = df[c].astype(str).str.strip().replace({'nan':''})
+            if not vals.eq('').all():
+                keep.append(c)
+    return df[keep]
+
+# ✅ SMART COLOR LOGIC (Main Table)
+def get_smart_row_color(p, is_even_row):
+    # GREEN (Excellent)
+    if p >= 80: 
+        return colors.HexColor("#E8F5E9") if is_even_row else colors.HexColor("#C8E6C9")
+    # YELLOW (Pass)
+    if p >= 50: 
+        return colors.HexColor("#FFFDE7") if is_even_row else colors.HexColor("#FFF9C4")
+    # RED (Fail)
+    return colors.HexColor("#FFEBEE") if is_even_row else colors.HexColor("#FFCDD2")
+
+# ✅ SUMMARY COLORS (Summary Table)
+SUMMARY_HEADER_COLORS = {
+    "METRICS": colors.HexColor("#1976D2"),         # Blue
+    "SUBJECT AVERAGES": colors.HexColor("#8E24AA"), # Purple
+    "TOP 5 RANKERS": colors.HexColor("#2E7D32"),    # Dark Green
+    "BOTTOM 5 PERFORMERS": colors.HexColor("#C62828") # Dark Red
+}
+
+# ------------- STREAMLIT UI -------------
+st.set_page_config(page_title="Murlidhar Result Generator", page_icon="📝")
+st.title("📝 Murlidhar Academy Result Generator")
+
+# --- 1. TEST SETTINGS ---
+st.header("1. Test Configuration")
+
+c_title, c_file = st.columns(2)
+default_title = "DAILY GCERT TEST RESULT | TEST NO. 7 & 8 | 29/12/2025"
+custom_title = c_title.text_input("Enter Main Title (Header)", default_title)
+
+default_filename = "MURLIDHAR GCERT TEST RESULT"
+output_filename_input = c_file.text_input("Output PDF Filename", default_filename)
+
+final_filename = output_filename_input.strip()
+if not final_filename.lower().endswith(".pdf"):
+    final_filename += ".pdf"
+
+st.subheader("Subject & Marks Setup")
+num_subjects = st.number_input("How many Subjects/Sections?", min_value=1, max_value=8, value=2)
+
+st.write("Define Subject Names & Question Ranges:")
+cols_header = st.columns([2, 1, 1])
+cols_header[0].markdown("**Subject Name**")
+cols_header[1].markdown("**Start Q.**")
+cols_header[2].markdown("**End Q.**")
+
+subject_config = []
+for i in range(int(num_subjects)):
+    c1, c2, c3 = st.columns([2, 1, 1])
     
-    keywords = ['name','student name','student','full name','studentname', 'candidate']
-    for key in keywords:
-        for c in cols:
-            if key == c.lower().strip():
-                return df[c].astype(str).fillna("").str.strip()
-    
-    for c in cols:
-        if 'name' in c.lower() or 'student' in c.lower():
-            return df[c].astype(str).fillna("").str.strip()
-            
-    return pd.Series([f"Student {i+1}" for i in range(len(df))])
-
-def find_possible_pts(df):
-    cols = df.columns
-    for c in cols:
-        if c.strip().lower() in ('possiblepts','possible_pts','possible points','possible', 'max marks'):
-            vals = pd.to_numeric(df[c], errors='coerce').dropna()
-            if len(vals) > 0: return float(vals.iloc[0])
-    for c in cols:
-        if any(k in c.lower() for k in ['possible','max','maximum','totalmarks']):
-            vals = pd.to_numeric(df[c], errors='coerce').dropna()
-            if len(vals) > 0: return float(vals.max())
-    return None
-
-def extract_obtained_series(df):
-    cols = df.columns
-    for c in cols:
-        clean = c.lower().replace(" ", "")
-        if 'earnedpts' in clean or 'obtainedmarks' in clean or 'score' == clean:
-            return pd.to_numeric(df[c], errors='coerce').fillna(0).astype(float)
-            
-    numeric_candidates = []
-    for c in cols:
-        if 'phone' in c.lower() or 'id' in c.lower() or 'roll' in c.lower(): continue
-        s = pd.to_numeric(df[c], errors='coerce')
-        if s.notna().sum() > 0:
-            numeric_candidates.append((c, s.mean()))
-    
-    if numeric_candidates:
-        numeric_candidates.sort(key=lambda x: x[1], reverse=True)
-        return pd.to_numeric(df[numeric_candidates[0][0]], errors='coerce').fillna(0).astype(float)
-        
-    return pd.Series(0.0, index=df.index)
-
-def get_soft_row_color(pct, t_green, t_yellow):
-    if pct >= t_green: return SOFT_GREEN
-    if pct >= t_yellow: return SOFT_AMBER
-    return SOFT_CORAL
-
-# ---------------- STREAMLIT UI ----------------
-st.set_page_config(page_title="Consolidated Monthly Report", page_icon="📅", layout="centered")
-st.title("📅 Consolidated Monthly Report Generator")
-
-# --- LOAD DEFAULT BG (Silent Load) ---
-if 'default_bg_data' not in st.session_state:
-    st.session_state['default_bg_data'] = download_default_bg(DEFAULT_DRIVE_ID)
-
-# --- SIDEBAR CONFIG ---
-with st.sidebar:
-    st.header("🎨 Color Grading Rules")
-    st.write("Set percentage thresholds for row colors:")
-    thresh_green = st.number_input("Green Zone (Excellent >= %)", min_value=0, max_value=100, value=80)
-    thresh_yellow = st.number_input("Yellow Zone (Average >= %)", min_value=0, max_value=100, value=50)
-    st.caption("Below Yellow will be Red/Coral.")
-    
-    st.markdown("---")
-    if st.session_state['default_bg_data']:
-        st.success("✅ Background loaded from Drive")
+    if i == 0:
+        def_name = "STD-6 CH-7"
     else:
-        st.warning("⚠️ Background loading failed")
+        def_name = f"STD-6 CH-{7+i}" 
+        
+    def_start = 1 if i==0 else 26
+    def_end = 25 if i==0 else 50
+    
+    s_name = c1.text_input(f"Name {i+1}", value=def_name, key=f"name_{i}", label_visibility="collapsed")
+    s_start = c2.number_input(f"Start {i+1}", min_value=1, value=def_start, key=f"start_{i}", label_visibility="collapsed")
+    s_end = c3.number_input(f"End {i+1}", min_value=1, value=def_end, key=f"end_{i}", label_visibility="collapsed")
+    subject_config.append({"name": s_name, "range": (s_start, s_end)})
 
-# --- MAIN INPUTS ---
-col1, col2 = st.columns(2)
-report_header_title = col1.text_input("Report Header Title (in PDF)", f"MONTHLY RESULT REPORT - {datetime.date.today().strftime('%B %Y')}")
-output_filename = col2.text_input("Output Filename (without .pdf)", f"Monthly_Report_{datetime.date.today().strftime('%b_%Y')}")
+# --- 2. UPLOAD ---
+st.header("2. Upload Data")
+uploaded_csv = st.file_uploader("Upload CSV (Marks)", type=['csv'])
 
-# ❌ Custom Background Upload Removed
-uploaded_files = st.file_uploader("Upload CSV Files (Select Multiple)", type=['csv'], accept_multiple_files=True)
+use_custom_bg = st.checkbox("Upload a different background image? (Uncheck to use Default Drive Image)")
+bg_file_data = None
 
-if uploaded_files:
-    if st.button("Generate Consolidated PDF 🚀", type="primary"):
-        with st.spinner("Processing files and compiling data..."):
-            
-            # 1. PROCESS DATA
-            per_file_data = []
-            
-            for uploaded_file in uploaded_files:
-                try:
-                    df = pd.read_csv(uploaded_file)
-                    file_max = find_possible_pts(df)
-                    names = find_name_series(df)
-                    obtained = extract_obtained_series(df)
-                    
-                    if file_max is None:
-                        file_max = obtained.max() if not obtained.empty else DEFAULT_TEST_MAX_PER_FILE
-                        if file_max == 0: file_max = DEFAULT_TEST_MAX_PER_FILE
-                    
-                    name_map = {}
-                    present_set = set()
-                    
-                    for n, score in zip(names, obtained):
-                        norm = normalize_name(n)
-                        if norm:
-                            present_set.add(norm)
-                            name_map[norm] = float(score)
-                            
-                    per_file_data.append({
-                        "file_max": float(file_max),
-                        "data": name_map,
-                        "present": present_set
-                    })
-                    
-                except Exception as e:
-                    st.error(f"Error processing {uploaded_file.name}: {e}")
+if use_custom_bg:
+    uploaded_img = st.file_uploader("Upload Template Image", type=['png', 'jpg', 'jpeg'])
+    if uploaded_img: bg_file_data = uploaded_img.getbuffer()
+else:
+    with st.spinner("Fetching background..."):
+        drive_bytes = download_default_bg(DEFAULT_DRIVE_ID)
+        if drive_bytes:
+            bg_file_data = drive_bytes.read()
+            st.success("✅ Default Background Loaded!")
+        else:
+            st.error("❌ Failed to download background.")
 
-            if not per_file_data:
-                st.stop()
+# --- PROCESS ---
+if uploaded_csv is not None and bg_file_data is not None:
+    
+    TEMPLATE_IMG = ImageReader(io.BytesIO(bg_file_data))
 
-            # 2. AGGREGATE DATA
-            all_students = set()
-            total_max_marks = sum(f['file_max'] for f in per_file_data)
-            total_tests_count = len(per_file_data)
-            
-            for f in per_file_data:
-                all_students.update(f['present'])
-            
-            final_records = []
-            for student_norm in all_students:
-                total_obtained = 0.0
-                tests_present = 0
-                display_name = student_norm.title()
+    raw = pd.read_csv(uploaded_csv)
+    raw = sanitize_df(raw)
+    
+    fname_col = next((c for c in raw.columns if c.strip().lower() == "firstname"), None)
+    lname_col = next((c for c in raw.columns if c.strip().lower() == "lastname"), None)
+    if fname_col and lname_col:
+        names = (raw[fname_col].astype(str).str.strip().fillna("") + " " + raw[lname_col].astype(str).str.strip().fillna("")).str.strip()
+    else:
+        name_col = next((c for c in raw.columns if "name" in c.lower()), None)
+        names = raw[name_col].astype(str).str.strip() if name_col else pd.Series([f"Student {i+1}" for i in range(len(raw))])
+
+    earned_cols_list, earned_index_map = detect_earned_cols(raw.columns)
+
+    SUBJECT_MAXES = {}
+    CALCULATED_TOTAL_MAX = 0
+    for subj in subject_config:
+        q_count = subj['range'][1] - subj['range'][0] + 1
+        SUBJECT_MAXES[subj['name']] = q_count
+        CALCULATED_TOTAL_MAX += q_count
+    TOTAL_MAX = CALCULATED_TOTAL_MAX
+
+    def sum_subject_from_map(row, start_q, end_q):
+        s = 0
+        for col, q_num in earned_index_map.items():
+            if start_q <= q_num <= end_q:
+                try: v = float(row[col])
+                except: v = 0.0
+                if pd.isna(v): v = 0.0
+                s += v
+        return int(s)
+
+    records = []
+    for i, row in raw.iterrows():
+        subj_vals = {}
+        for subj in subject_config:
+            if earned_index_map:
+                val = sum_subject_from_map(row, subj['range'][0], subj['range'][1])
+            else:
+                val = 0
+            subj_vals[subj['name']] = val
+        obtained = sum(subj_vals.values())
+        perc = round((obtained / TOTAL_MAX) * 100, 1) if TOTAL_MAX > 0 else 0.0
+        records.append({"Name": names.iloc[i], **subj_vals, "Total": obtained, "Percentage": perc})
+
+    df = pd.DataFrame(records)
+    df["Rank"] = df["Total"].rank(method="dense", ascending=False).astype(int)
+    df = df.sort_values(by=["Total","Percentage","Name"], ascending=[False, False, True]).reset_index(drop=True)
+
+    # --- PDF GEN ---
+    PAGE_W, PAGE_H = A4
+    TITLE_Y = PAGE_H - (TITLE_Y_mm_from_top * mm)
+    TABLE_TOP_Y = TITLE_Y - (TABLE_SPACE_AFTER_TITLE_mm * mm)
+    LEFT_MARGIN = LEFT_MARGIN_mm * mm
+    RIGHT_MARGIN = RIGHT_MARGIN_mm * mm
+    TABLE_WIDTH = PAGE_W - LEFT_MARGIN - RIGHT_MARGIN
+    
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+
+    subj_keys = [s['name'] for s in subject_config]
+    header = ["No","Rank","Student Name"] + subj_keys + ["Total","%"]
+    
+    max_name_len = max(df['Name'].astype(str).map(len).max(), 12)
+    
+    u_no = 3.0
+    u_rank = 3.0
+    u_name = max_name_len * 0.65
+    u_subj = 4.0
+    u_total = 4.5
+    u_pct = 4.5
+    
+    total_units = u_no + u_rank + u_name + (u_subj * len(subj_keys)) + u_total + u_pct
+    
+    col_widths = []
+    col_widths.append((u_no / total_units) * TABLE_WIDTH)
+    col_widths.append((u_rank / total_units) * TABLE_WIDTH)
+    col_widths.append((u_name / total_units) * TABLE_WIDTH)
+    for _ in subj_keys:
+        col_widths.append((u_subj / total_units) * TABLE_WIDTH)
+    col_widths.append((u_total / total_units) * TABLE_WIDTH)
+    col_widths.append((u_pct / total_units) * TABLE_WIDTH)
+
+    def build_table_data_for_page(page_df, page_index):
+        data = [header]
+        start_no = page_index * ROWS_PER_PAGE + 1
+        for idx, r in page_df.iterrows():
+            serial = start_no + idx
+            row_cells = [str(serial), str(int(r["Rank"])), str(r["Name"]).strip()]
+            for s_name in subj_keys:
+                obtained = int(r.get(s_name, 0))
+                mx = SUBJECT_MAXES[s_name]
+                row_cells.append(f"{obtained}/{mx}")
+            row_cells.append(f"{int(r['Total'])}/{TOTAL_MAX}")
+            row_cells.append(f"{float(r['Percentage']):.1f}%")
+            data.append(row_cells)
+        return data
+
+    def draw_main_page(page_df, page_index, total_pages):
+        c.drawImage(TEMPLATE_IMG, 0, 0, width=PAGE_W, height=PAGE_H)
+        c.setFont("Helvetica-Bold", 15)
+        c.setFillColor(colors.black)
+        c.drawCentredString(PAGE_W/2, TITLE_Y, custom_title)
+
+        data = build_table_data_for_page(page_df, page_index)
+        t = Table(data, colWidths=col_widths, repeatRows=1)
+        
+        f_size = 8.5
+        if len(subj_keys) > 4: f_size = 7.5
+        if len(subj_keys) > 6: f_size = 6.5
+        
+        # ✅ TABLE THEME: Blue Header (#0f5f9a) & White Text
+        style = TableStyle([
+            ('GRID',(0,0),(-1,-1),0.25,colors.HexColor("#666666")),
+            ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#0f5f9a")),
+            ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+            ('FONT',(0,0),(-1,0),'Helvetica-Bold'),
+            ('ALIGN',(0,0),(-1,0),'CENTER'),
+            ('ALIGN',(0,1),(-1,-1),'CENTER'),
+            ('ALIGN',(2,1),(2,-1),'LEFT'),
+            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+            ('FONTSIZE',(0,0),(-1,-1), f_size),
+            ('LEFTPADDING',(0,0),(-1,-1),4),
+            ('RIGHTPADDING',(0,0),(-1,-1),4),
+        ])
+
+        for i in range(1, len(data)):
+            is_even_row = (i % 2 == 0)
+            try:
+                pct_text = data[i][-1].replace('%','')
+                pct = float(pct_text)
+                bg_color = get_smart_row_color(pct, is_even_row)
+            except:
+                bg_color = colors.Color(0.96,0.97,0.99) if is_even_row else colors.white
+
+            style.add('BACKGROUND', (0,i), (-1,i), bg_color)
+            style.add('TEXTCOLOR', (0,i), (-1,i), colors.black)
+
+        t.setStyle(style)
+        tw, th = t.wrapOn(c, TABLE_WIDTH, PAGE_H)
+        t.drawOn(c, (PAGE_W - tw) / 2, TABLE_TOP_Y - th)
+
+        c.linkURL(TG_LINK, (20*mm, 24*mm, 106*mm, 45*mm))
+        c.linkURL(IG_LINK, (110*mm, 24*mm, 190*mm, 45*mm))
+        
+        # ✅ PAGE NO: White Color
+        c.setFont("Helvetica", 8)
+        c.setFillColor(colors.white) 
+        c.drawRightString(PAGE_W - 10*mm, PAGE_NO_Y_mm*mm, f"Page {page_index+1}/{total_pages}")
+        c.showPage()
+
+    total_rows = len(df)
+    main_pages = max(1, math.ceil(total_rows / ROWS_PER_PAGE))
+    total_pages = main_pages + 1
+
+    for p in range(main_pages):
+        page_df = df.iloc[p*ROWS_PER_PAGE:(p+1)*ROWS_PER_PAGE].reset_index(drop=True)
+        draw_main_page(page_df, p, total_pages)
+
+    # --- SUMMARY PAGE ---
+    c.drawImage(TEMPLATE_IMG, 0, 0, width=PAGE_W, height=PAGE_H)
+    c.setFont("Helvetica-Bold", 15)
+    c.setFillColor(colors.black)
+    c.drawCentredString(PAGE_W/2, TITLE_Y, "SUMMARY & ANALYSIS OF THE TEST")
+
+    summary_rows = [["Section / Student", "Marks Details", "Remarks"]]
+
+    metrics = [
+     ("Total Candidates", str(len(df)), "Total Appearing"),
+     ("Batch Average", f"{df['Total'].mean():.2f}/{TOTAL_MAX}", "Overall Class Performance"),
+     ("Median Score", f"{df['Total'].median():.2f}/{TOTAL_MAX}", "Middle Score of Batch"),
+     ("Highest Score", f"{int(df['Total'].max())}/{TOTAL_MAX}", "Top Rank Score"),
+     ("Lowest Score", f"{int(df['Total'].min())}/{TOTAL_MAX}", "Lowest Score"),
+     ("Qualified (>=50%)", str(int((df['Percentage']>=50).sum())), "Candidates Passed"),
+     ("Disqualified (<50%)", str(int((df['Percentage']<50).sum())), "Candidates Failed"),
+     ("Overall Result", f"{round(((df['Percentage']>=50).sum()/len(df)*100) if len(df)>0 else 0,1)}%", "Pass Percentage")
+    ]
+    summary_rows.append(["METRICS", "", ""])
+    for m in metrics: summary_rows.append([m[0], m[1], m[2]])
+
+    summary_rows.append(["SUBJECT AVERAGES", "", ""])
+    for s_name in subj_keys:
+        avg = df[s_name].mean() if s_name in df.columns else 0.0
+        summary_rows.append([s_name, f"{avg:.2f}/{SUBJECT_MAXES[s_name]}", "Avg. Subject Performance"])
+
+    summary_rows.append(["TOP 5 RANKERS", "", ""])
+    top5 = df.sort_values(by=["Total","Percentage"], ascending=[False, False]).head(5).reset_index(drop=True)
+    
+    for i, r in top5.iterrows(): 
+        col1 = f"#{i+1}  {r['Name']}"
+        col2 = f"{int(r['Total'])}/{TOTAL_MAX}  ({float(r['Percentage']):.1f}%)"
+        if i == 0: rem = "Outstanding"
+        elif i == 1: rem = "Excellent"
+        elif i == 2: rem = "Very Good"
+        else: rem = "Good Effort"
+        summary_rows.append([col1, col2, rem])
+
+    summary_rows.append(["BOTTOM 5 PERFORMERS", "", ""])
+    bot5 = df.sort_values(by=["Total","Percentage"], ascending=[True, True]).head(5).reset_index(drop=True)
+    
+    for _, r in bot5.iterrows(): 
+        col1 = f"#{int(r['Rank'])}  {r['Name']}"
+        col2 = f"{int(r['Total'])}/{TOTAL_MAX}  ({float(r['Percentage']):.1f}%)"
+        col3 = "Needs Hard Work"
+        summary_rows.append([col1, col2, col3])
+
+    col1_w = 75*mm
+    col2_w = 45*mm
+    col3_w = TABLE_WIDTH - (col1_w + col2_w)
+    
+    consol_table = Table(summary_rows, colWidths=[col1_w, col2_w, col3_w], repeatRows=1)
+    
+    # ✅ SUMMARY TABLE THEME
+    consol_style = TableStyle([
+        ('GRID',(0,0),(-1,-1),0.25,colors.HexColor("#666666")),
+        ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#0f5f9a")), # Blue Header
+        ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+        ('FONT',(0,0),(-1,0),'Helvetica-Bold'),
+        ('FONTSIZE',(0,0),(-1,-1),9),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('ALIGN',(0,0),(-1,0),'CENTER'),
+        ('ALIGN',(0,1),(-1,-1),'LEFT'),
+        ('LEFTPADDING',(0,0),(-1,-1),6),
+        ('RIGHTPADDING',(0,0),(-1,-1),6),
+    ])
+
+    for i, row in enumerate(summary_rows):
+        if i==0: continue
+        
+        base_bg = colors.Color(0.96,0.97,1.0) if i % 2 == 0 else colors.white
+        consol_style.add('BACKGROUND',(0,i),(-1,i), base_bg)
+
+        first_col = str(row[0]) if row[0] else ""
+        
+        # ✅ Apply specific colors to Section Headers
+        if first_col in SUMMARY_HEADER_COLORS:
+            consol_style.add('BACKGROUND',(0,i),(-1,i), SUMMARY_HEADER_COLORS[first_col])
+            consol_style.add('TEXTCOLOR',(0,i),(-1,i), colors.white)
+            consol_style.add('FONT',(0,i),(-1,i),'Helvetica-Bold')
+        else:
+            val = str(row[1])
+            try:
+                cell_color = None
+                pct = 0
+                if '(' in val and '%' in val: 
+                    pct = float(val.split('(')[1].replace('%)',''))
+                elif '/' in val:
+                    num = float(val.split('/')[0])
+                    pct = (num / TOTAL_MAX) * 100 if TOTAL_MAX>0 else 0
                 
-                for f in per_file_data:
-                    if student_norm in f['present']:
-                        tests_present += 1
-                        total_obtained += f['data'].get(student_norm, 0.0)
+                if pct > 0:
+                    if pct>=80: cell_color=colors.HexColor("#C8E6C9")
+                    elif pct>=50: cell_color=colors.HexColor("#FFF9C4")
+                    else: cell_color=colors.HexColor("#FFCDD2")
                 
-                pct = (total_obtained / total_max_marks * 100) if total_max_marks > 0 else 0
-                
-                final_records.append({
-                    "Name": display_name,
-                    "Total Tests": total_tests_count,
-                    "Present": tests_present,
-                    "Absent": total_tests_count - tests_present,
-                    "Total Marks": int(total_max_marks),
-                    "Obtained": round(total_obtained, 2),
-                    "Percentage": round(pct, 1)
-                })
-            
-            out_df = pd.DataFrame(final_records)
-            out_df['Rank'] = out_df['Obtained'].rank(method='dense', ascending=False).astype(int)
-            out_df = out_df.sort_values(by=['Rank', 'Name']).reset_index(drop=True)
-            
-            # 3. PDF GENERATION
-            buffer = io.BytesIO()
-            c = canvas.Canvas(buffer, pagesize=A4)
-            PAGE_W, PAGE_H = A4
-            
-            # HANDLE IMAGE LOGIC (Only Default Drive Image)
-            TEMPLATE_IMG = None
-            if st.session_state['default_bg_data']:
-                try:
-                    st.session_state['default_bg_data'].seek(0)
-                    TEMPLATE_IMG = ImageReader(Image.open(st.session_state['default_bg_data']))
-                except: pass
+                if cell_color:
+                    consol_style.add('BACKGROUND',(1,i),(1,i), cell_color)
+            except:
+                pass
 
-            def draw_bg_and_header(c, title_text):
-                if TEMPLATE_IMG:
-                    c.drawImage(TEMPLATE_IMG, 0, 0, width=PAGE_W, height=PAGE_H)
-                
-                TITLE_Y = PAGE_H - (TITLE_Y_mm_from_top * mm)
-                c.setFont("Helvetica-Bold", 15)
-                c.setFillColor(colors.white if TEMPLATE_IMG else colors.HexColor("#0f5f9a"))
-                c.drawCentredString(PAGE_W/2, TITLE_Y, title_text)
+    consol_table.setStyle(consol_style)
+    twc, thc = consol_table.wrap(TABLE_WIDTH, PAGE_H)
+    consol_table.drawOn(c, (PAGE_W - twc) / 2, TABLE_TOP_Y - thc)
 
-            def add_social_links(c):
-                if TEMPLATE_IMG:
-                    c.linkURL(TG_LINK, (20*mm, 24*mm, 106*mm, 45*mm))
-                    c.linkURL(IG_LINK, (110*mm, 24*mm, 190*mm, 45*mm))
+    # ✅ PAGE NO (Summary Page): White Color
+    c.setFont("Helvetica", 8)
+    c.setFillColor(colors.white)
+    c.drawRightString(PAGE_W - 10*mm, PAGE_NO_Y_mm*mm, f"Page {total_pages}/{total_pages}")
 
-            # Table Setup
-            table_header = ["No", "Rank", "Name", "Tests", "Pres", "Abs", "Max", "Obt", "%"]
-            TABLE_WIDTH = PAGE_W - (LEFT_MARGIN_mm * mm) - (RIGHT_MARGIN_mm * mm)
-            col_widths = [
-                0.06 * TABLE_WIDTH, 0.07 * TABLE_WIDTH, 0.35 * TABLE_WIDTH,
-                0.08 * TABLE_WIDTH, 0.07 * TABLE_WIDTH, 0.07 * TABLE_WIDTH,
-                0.10 * TABLE_WIDTH, 0.10 * TABLE_WIDTH, 0.10 * TABLE_WIDTH
-            ]
+    c.showPage()
+    c.save()
 
-            data_rows = []
-            for i, r in out_df.iterrows():
-                row = [
-                    str(i + 1), str(r['Rank']), str(r['Name']),
-                    str(r['Total Tests']), str(r['Present']), str(r['Absent']),
-                    str(r['Total Marks']), str(r['Obtained']), f"{r['Percentage']}%"
-                ]
-                data_rows.append(row)
-
-            total_pages_main = math.ceil(len(data_rows) / ROWS_PER_PAGE)
-            total_pages = total_pages_main + 1 
-            TABLE_TOP_Y = PAGE_H - (TITLE_Y_mm_from_top * mm) - (TABLE_SPACE_AFTER_TITLE_mm * mm)
-
-            # --- MAIN PAGES LOOP ---
-            for p in range(total_pages_main):
-                start = p * ROWS_PER_PAGE
-                end = start + ROWS_PER_PAGE
-                page_data = [table_header] + data_rows[start:end]
-                
-                draw_bg_and_header(c, report_header_title)
-                
-                t = Table(page_data, colWidths=col_widths, repeatRows=1)
-                style = TableStyle([
-                    ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#cfcfcf")),
-                    ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0f5f9a")),
-                    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                    ('FONT', (0,0), (-1,0), 'Helvetica-Bold'),
-                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                    ('ALIGN', (2,1), (2,-1), 'LEFT'),
-                    ('LEFTPADDING', (2,1), (2,-1), 6),
-                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                    ('FONTSIZE', (0,0), (-1,-1), 9),
-                ])
-                
-                for i in range(1, len(page_data)):
-                    try: pct_val = float(page_data[i][-1].replace('%',''))
-                    except: pct_val = 0
-                    bg_color = get_soft_row_color(pct_val, thresh_green, thresh_yellow)
-                    style.add('BACKGROUND', (0,i), (-1,i), bg_color)
-                    style.add('TEXTCOLOR', (0,i), (-1,i), colors.black)
-                
-                t.setStyle(style)
-                w, h = t.wrapOn(c, TABLE_WIDTH, PAGE_H)
-                t.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
-                
-                c.setFont("Helvetica", 8)
-                c.setFillColor(colors.black)
-                c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {p+1}/{total_pages}")
-                
-                add_social_links(c)
-                c.showPage()
-
-            # --- SUMMARY PAGE ---
-            draw_bg_and_header(c, "SUMMARY & ANALYSIS OF THE MONTH")
-            
-            avg_obt = out_df['Obtained'].mean()
-            pass_count = len(out_df[out_df['Percentage'] >= thresh_yellow])
-            
-            summary_data = [
-                ["METRIC", "VALUE", "REMARK"],
-                ["Total Candidates", str(len(out_df)), "Unique students appearing"],
-                ["Total Tests", str(total_tests_count), "Number of CSVs processed"],
-                ["Total Marks", str(total_max_marks), "Sum of all test max marks"],
-                ["Batch Average", f"{avg_obt:.2f}", "Overall class performance"],
-                ["Highest Score", f"{out_df['Obtained'].max()}", "Top ranker score"],
-                ["Lowest Score", f"{out_df['Obtained'].min()}", "Needs attention"],
-                ["Pass Candidates", f"{pass_count}", f">={thresh_yellow}% Score"],
-            ]
-            
-            summary_data.append(["TOP 5 RANKERS", "", ""])
-            top_5 = out_df.head(5)
-            for i, r in top_5.iterrows():
-                summary_data.append([f"Rank {r['Rank']}", r['Name'], f"{r['Obtained']}/{total_max_marks} ({r['Percentage']}%)"])
-
-            summary_data.append(["BOTTOM 3 (NEEDS IMPROVEMENT)", "", ""])
-            bot_3 = out_df.tail(3).sort_values(by='Obtained')
-            for i, r in bot_3.iterrows():
-                summary_data.append([f"Rank {r['Rank']}", r['Name'], f"{r['Obtained']}/{total_max_marks} ({r['Percentage']}%)"])
-
-            sum_col_widths = [0.25*TABLE_WIDTH, 0.25*TABLE_WIDTH, 0.50*TABLE_WIDTH]
-            st_table = Table(summary_data, colWidths=sum_col_widths)
-            
-            sum_style = TableStyle([
-                ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#999999")),
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0f5f9a")),
-                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                ('FONT', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-                ('LEFTPADDING', (0,0), (-1,-1), 6),
-                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ])
-            
-            for i, row in enumerate(summary_data):
-                if row[0] == "TOP 5 RANKERS":
-                    sum_style.add('BACKGROUND', (0,i), (-1,i), colors.HexColor("#2E7D32"))
-                    sum_style.add('TEXTCOLOR', (0,i), (-1,i), colors.white)
-                elif row[0] == "BOTTOM 3 (NEEDS IMPROVEMENT)":
-                    sum_style.add('BACKGROUND', (0,i), (-1,i), colors.HexColor("#C62828"))
-                    sum_style.add('TEXTCOLOR', (0,i), (-1,i), colors.white)
-                elif i > 0 and row[0] not in ["TOP 5 RANKERS", "BOTTOM 3 (NEEDS IMPROVEMENT)"]:
-                    if i % 2 == 0:
-                        sum_style.add('BACKGROUND', (0,i), (-1,i), colors.HexColor("#F5F5F5"))
-            
-            st_table.setStyle(sum_style)
-            w, h = st_table.wrapOn(c, TABLE_WIDTH, PAGE_H)
-            st_table.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
-            
-            c.setFont("Helvetica", 8)
-            c.setFillColor(colors.black)
-            c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages}/{total_pages}")
-            
-            add_social_links(c)
-            
-            c.showPage()
-            c.save()
-            buffer.seek(0)
-            
-            final_pdf_name = output_filename.strip()
-            if not final_pdf_name.endswith('.pdf'):
-                final_pdf_name += ".pdf"
-            
-            st.success("✅ Consolidated Report Generated Successfully!")
-            st.download_button(
-                label=f"📥 Download {final_pdf_name}",
-                data=buffer,
-                file_name=final_pdf_name,
-                mime="application/pdf"
-            )
+    st.success(f"🎉 PDF Generated successfully! Ready to download as: {final_filename}")
+    
+    buffer.seek(0)
+    st.download_button(
+        label=f"📥 Download {final_filename}",
+        data=buffer,
+        file_name=final_filename,
+        mime="application/pdf"
+    )
