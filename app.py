@@ -18,7 +18,7 @@ from reportlab.lib.utils import ImageReader
 TG_LINK = "https://t.me/MurlidharAcademy"
 IG_LINK = "https://www.instagram.com/murlidhar_academy_official/"
 
-# ✅ Updated Google Drive Image ID
+# ✅ Default Google Drive Background Image
 DEFAULT_DRIVE_ID = "1a1ZK5uiLl0a63Pto1EQDUY0VaIlqp21u"
 
 LEFT_MARGIN_mm = 18
@@ -135,14 +135,17 @@ with st.sidebar:
     st.caption("Below Yellow will be Red/Coral.")
     
     st.markdown("---")
-    st.info("Default background is loaded automatically from Google Drive if no custom image is uploaded.")
+    if st.session_state['default_bg_data']:
+        st.success("✅ Background loaded from Drive")
+    else:
+        st.warning("⚠️ Background loading failed")
 
 # --- MAIN INPUTS ---
 col1, col2 = st.columns(2)
 report_header_title = col1.text_input("Report Header Title (in PDF)", f"MONTHLY RESULT REPORT - {datetime.date.today().strftime('%B %Y')}")
 output_filename = col2.text_input("Output Filename (without .pdf)", f"Monthly_Report_{datetime.date.today().strftime('%b_%Y')}")
 
-bg_file = st.file_uploader("Upload Custom Background (Optional)", type=['png', 'jpg', 'jpeg', 'webp'])
+# ❌ Custom Background Upload Removed
 uploaded_files = st.file_uploader("Upload CSV Files (Select Multiple)", type=['csv'], accept_multiple_files=True)
 
 if uploaded_files:
@@ -224,13 +227,9 @@ if uploaded_files:
             c = canvas.Canvas(buffer, pagesize=A4)
             PAGE_W, PAGE_H = A4
             
-            # HANDLE IMAGE LOGIC (Custom > Default > None)
+            # HANDLE IMAGE LOGIC (Only Default Drive Image)
             TEMPLATE_IMG = None
-            if bg_file:
-                try:
-                    TEMPLATE_IMG = ImageReader(Image.open(bg_file))
-                except: pass
-            elif st.session_state['default_bg_data']:
+            if st.session_state['default_bg_data']:
                 try:
                     st.session_state['default_bg_data'].seek(0)
                     TEMPLATE_IMG = ImageReader(Image.open(st.session_state['default_bg_data']))
