@@ -29,8 +29,8 @@ LOGO_ID = "1BGvxglcgZ2G6FdVelLjXZVo-_v4e4a42"
 # ==========================================
 CERT_LOGO_WIDTH = 38 * mm       
 CERT_LOGO_HEIGHT = 38 * mm      
-CERT_LOGO_X_POS = 40 * mm       
-CERT_LOGO_Y_POS = 145 * mm      
+CERT_LOGO_X_POS = 36 * mm       
+CERT_LOGO_Y_POS = 142 * mm      
 
 CERT_SIGN_WIDTH = 65 * mm       
 CERT_SIGN_HEIGHT = 22 * mm      
