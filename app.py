@@ -57,15 +57,31 @@ def download_image_from_drive(file_id):
         url = get_drive_url(file_id)
         response = requests.get(url, allow_redirects=True)
         if response.status_code == 200:
-            try:
-                img = Image.open(io.BytesIO(response.content))
-                img.verify() # Check if it's a valid image
-                return io.BytesIO(response.content)
-            except Exception:
-                return None
+            # Return raw bytes
+            return io.BytesIO(response.content)
         else:
             return None
     except:
+        return None
+
+# ✅ NEW HELPER FOR TRANSPARENT IMAGES
+def get_transparent_image_reader(img_bytes):
+    """Ensures PNG transparency is correctly handled by ReportLab."""
+    if not img_bytes: return None
+    try:
+        img_bytes.seek(0) # Reset pointer just in case
+        img = Image.open(img_bytes)
+        # Ensure RGBA Mode for transparency
+        if img.mode != 'RGBA':
+            img = img.convert('RGBA')
+        
+        # Save to a new buffer as PNG to ensure clean data for ReportLab
+        new_buffer = io.BytesIO()
+        img.save(new_buffer, format='PNG')
+        new_buffer.seek(0)
+        return ImageReader(new_buffer)
+    except Exception as e:
+        print(f"Error processing image for transparency: {e}")
         return None
 
 def normalize_name(s):
@@ -139,9 +155,9 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
     c = canvas.Canvas(buffer, pagesize=landscape(A4))
     width, height = landscape(A4)
     
-    # Prepare Images
-    logo_img = ImageReader(Image.open(logo_bytes)) if logo_bytes else None
-    sign_img = ImageReader(Image.open(sign_bytes)) if sign_bytes else None
+    # ✅ Use the new helper to process images correctly for transparency
+    logo_img = get_transparent_image_reader(logo_bytes)
+    sign_img = get_transparent_image_reader(sign_bytes)
 
     awards_to_give = [] 
 
@@ -197,65 +213,66 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
         c.setLineWidth(5); c.rect(15*mm, 15*mm, width-30*mm, height-30*mm)
         c.setLineWidth(1); c.rect(18*mm, 18*mm, width-36*mm, height-36*mm)
 
-        # ✅ LOGO (Centered Top)
+        # ✅ LOGO (Moved Down)
         if logo_img:
-            logo_w, logo_h = 30*mm, 30*mm # Size
-            c.drawImage(logo_img, (width - logo_w)/2, height - 45*mm, width=logo_w, height=logo_h, mask='auto', preserveAspectRatio=True)
+            logo_w, logo_h = 30*mm, 30*mm
+            # Changed Y from height-45mm to height-55mm to avoid overlap
+            c.drawImage(logo_img, (width - logo_w)/2, height - 55*mm, width=logo_w, height=logo_h, mask='auto', preserveAspectRatio=True)
 
         # Header Text
         c.setFont("Helvetica-Bold", 30)
         c.setFillColor(COLOR_BLUE_HEADER)
-        # Position below Logo
-        c.drawCentredString(width/2, height - 55*mm, "MURLIDHAR ACADEMY")
+        c.drawCentredString(width/2, height - 65*mm, "MURLIDHAR ACADEMY") # Adjusted Y
         
         c.setFont("Helvetica", 12)
         c.setFillColor(colors.black)
-        c.drawCentredString(width/2, height - 62*mm, "JUNAGADH")
+        c.drawCentredString(width/2, height - 72*mm, "JUNAGADH") # Adjusted Y
 
         # Titles
         c.setFont("Helvetica-Oblique", 18)
         c.setFillColor(colors.black)
-        c.drawCentredString(width/2, height - 80*mm, "Certificate of Achievement")
+        c.drawCentredString(width/2, height - 85*mm, "Certificate of Achievement")
 
         # Main Result Title
         c.setFont("Helvetica-Bold", 14)
         c.setFillColor(colors.darkgrey)
-        c.drawCentredString(width/2, height - 90*mm, f"For: {report_title}")
+        c.drawCentredString(width/2, height - 95*mm, f"For: {report_title}")
 
         c.setFont("Helvetica", 12)
         c.setFillColor(colors.gray)
-        c.drawCentredString(width/2, height - 100*mm, "This is proudly presented to")
+        c.drawCentredString(width/2, height - 105*mm, "This is proudly presented to")
 
         # Student Name
         c.setFont("Helvetica-Bold", 32)
         c.setFillColor(theme_color)
-        c.drawCentredString(width/2, height - 118*mm, student_name.upper())
+        c.drawCentredString(width/2, height - 120*mm, student_name.upper())
         c.setStrokeColor(colors.black); c.setLineWidth(0.5)
-        c.line(width/2 - 60*mm, height - 121*mm, width/2 + 60*mm, height - 121*mm)
+        c.line(width/2 - 60*mm, height - 123*mm, width/2 + 60*mm, height - 123*mm)
 
         # Award Title
         c.setFont("Helvetica-Bold", 20)
         c.setFillColor(colors.black)
-        c.drawCentredString(width/2, height - 138*mm, title)
+        c.drawCentredString(width/2, height - 140*mm, title)
 
         # Description
         style = ParagraphStyle('Desc', parent=getSampleStyleSheet()['Normal'], fontName='Helvetica', fontSize=14, leading=18, alignment=TA_CENTER, textColor=colors.darkgray)
         p = Paragraph(desc, style)
         w, h = p.wrap(width - 70*mm, 50*mm)
-        p.drawOn(c, (width - w)/2, height - 158*mm)
+        p.drawOn(c, (width - w)/2, height - 160*mm)
 
         # Bottom Section (Date & Signature)
         c.setFont("Helvetica-Bold", 12)
         c.setFillColor(colors.black)
         
-        # ✅ DATE (Left)
+        # DATE (Left)
         c.drawString(30*mm, 35*mm, f"Date: {cert_date}")
         
-        # ✅ SIGNATURE IMAGE (Right)
+        # ✅ SIGNATURE IMAGE (Bigger Size & Positioned)
         if sign_img:
-            sign_w, sign_h = 40*mm, 15*mm # Size
-            # Position image above the line
-            c.drawImage(sign_img, width - 75*mm, 40*mm, width=sign_w, height=sign_h, mask='auto', preserveAspectRatio=True)
+            # Increased size significantly
+            sign_w, sign_h = 70*mm, 25*mm 
+            # Positioned above the line
+            c.drawImage(sign_img, width - 85*mm, 42*mm, width=sign_w, height=sign_h, mask='auto', preserveAspectRatio=True)
 
         # Line & Text
         c.setLineWidth(1)
@@ -272,7 +289,8 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
 st.set_page_config(page_title="Murlidhar Academy Report System", page_icon="🎓", layout="centered")
 st.title("🎓 Murlidhar Academy Report System")
 
-# Load Images silently
+# Load Images silently with new helper method implied by logic flow, but actually just getting bytes here.
+# The transparency fix happens inside generate_certificates_pdf
 if 'default_bg_data' not in st.session_state:
     st.session_state['default_bg_data'] = download_image_from_drive(DEFAULT_DRIVE_ID)
 if 'logo_data' not in st.session_state:
@@ -363,6 +381,8 @@ if uploaded_files:
                 PAGE_W, PAGE_H = A4
                 TEMPLATE_IMG = None
                 if st.session_state['default_bg_data']:
+                    # Use the transparent helper for the main report BG too if needed, 
+                    # but usually JPG is fine here. Sticking to simple read for now.
                     st.session_state['default_bg_data'].seek(0)
                     TEMPLATE_IMG = ImageReader(Image.open(st.session_state['default_bg_data']))
 
@@ -496,16 +516,9 @@ if uploaded_files:
         # --- BUTTON 2: CERTIFICATES ---
         if col_btn2.button("🏆 Generate Certificates PDF", type="secondary"):
             with st.spinner("Generating Certificates..."):
-                # Get Image Bytes from Session State
-                logo_bytes = None
-                if st.session_state['logo_data']:
-                    st.session_state['logo_data'].seek(0)
-                    logo_bytes = st.session_state['logo_data']
-                
-                sign_bytes = None
-                if st.session_state['sign_data']:
-                    st.session_state['sign_data'].seek(0)
-                    sign_bytes = st.session_state['sign_data']
+                # Pass the raw bytes from session state to the generator function
+                logo_bytes = st.session_state['logo_data'] if 'logo_data' in st.session_state else None
+                sign_bytes = st.session_state['sign_data'] if 'sign_data' in st.session_state else None
 
                 cert_buffer = generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_header_title, cert_date_input, logo_bytes, sign_bytes)
                 cert_name = f"Certificates_{output_filename.strip()}.pdf"
