@@ -40,10 +40,10 @@ CHAR_IDS = {
 # ==========================================
 
 # 1. LOGO SETTINGS (Left Side)
-CERT_LOGO_WIDTH = 45 * mm       
-CERT_LOGO_HEIGHT = 45 * mm      
+CERT_LOGO_WIDTH = 38 * mm       
+CERT_LOGO_HEIGHT = 38 * mm      
 CERT_LOGO_X_POS = 36 * mm       
-CERT_LOGO_Y_POS = 140 * mm      
+CERT_LOGO_Y_POS = 143 * mm      
 
 # 2. SIGNATURE SETTINGS (Bottom Right)
 CERT_SIGN_WIDTH = 65 * mm       
@@ -52,14 +52,19 @@ CERT_SIGN_X_POS = 235 * mm
 CERT_SIGN_Y_POS = 38 * mm       
 
 # 3. CHARACTER IMAGE SETTINGS (Right Side - Background)
-# Size increased approx 3x (Old was 55mm -> New 150mm)
-CERT_CHAR_WIDTH = 140 * mm      
-CERT_CHAR_HEIGHT = 140 * mm     
-# Positioned on the Right side (Opposite to Logo)
-# A4 width is 297mm. 297 - 36 (margin) - 150 (width) = ~111mm start
-CERT_CHAR_X_POS = 155 * mm      
-CERT_CHAR_Y_POS = 40 * mm       # Vertically centered somewhat
-CERT_CHAR_OPACITY = 0.25         # 0.15 = Very Light Watermark, 0.5 = Semi Transparent
+CERT_CHAR_WIDTH = 140 * mm      # Size (Width)
+CERT_CHAR_HEIGHT = 140 * mm     # Size (Height)
+CERT_CHAR_OPACITY = 0.35        # Opacity (0.35 is perfect as per your request)
+
+# 👇👇👇 (અહીંથી પોઝિશન સેટ કરો) 👇👇👇
+CERT_CHAR_MARGIN_RIGHT = 2 * mm   # જમણી બાજુથી કેટલું દૂર રાખવું? (Right Margin)
+CERT_CHAR_MARGIN_TOP = 30 * mm    # ઉપરની બાજુથી કેટલું નીચે રાખવું? (Top Margin)
+
+# (આ ઓટોમેટિક ગણતરી કરશે, તમારે આમાં ફેરફાર કરવાની જરૂર નથી)
+PAGE_W_MM = 297 # A4 Landscape Width
+PAGE_H_MM = 210 # A4 Landscape Height
+CERT_CHAR_X_POS = (PAGE_W_MM * mm) - CERT_CHAR_WIDTH - CERT_CHAR_MARGIN_RIGHT
+CERT_CHAR_Y_POS = (PAGE_H_MM * mm) - CERT_CHAR_HEIGHT - CERT_CHAR_MARGIN_TOP
 
 # ==========================================
 
@@ -206,7 +211,7 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
     char_readers = {}
     for key, val_bytes in char_images_bytes.items():
         if val_bytes:
-            # Apply 50% opacity (0.5)
+            # Apply Opacity
             reader = get_transparent_image_reader(val_bytes, opacity=CERT_CHAR_OPACITY)
             if reader:
                 char_readers[key] = reader
@@ -277,10 +282,9 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
     # DRAWING CERTIFICATES
     for student_name, title, desc, theme_color, char_key in awards_to_give:
         
-        # 1. DRAW CHARACTER IMAGE FIRST (AS BACKGROUND)
+        # 1. DRAW CHARACTER IMAGE FIRST (BACKGROUND)
         if char_key in char_readers:
             char_img = char_readers[char_key]
-            # Draw Character Image at Right Side, Big Size
             c.drawImage(char_img, CERT_CHAR_X_POS, CERT_CHAR_Y_POS, width=CERT_CHAR_WIDTH, height=CERT_CHAR_HEIGHT, mask='auto', preserveAspectRatio=True)
 
         # 2. DRAW BORDERS (On top of character)
@@ -576,10 +580,10 @@ if uploaded_files:
                 if not rank6_10.empty: awards_list.append([mk_para("Karna Veerta Award", style_an), mk_para("The Brave Warriors (Rank 6 to 10). Talented fighters who fought hard and missed the top 5 by a narrow margin.", style_ad), mk_para("<br/>".join(rank6_10['Name'].tolist()), style_aw)])
                 
                 angad_c = out_df[(out_df['Absent'] == 0) & (out_df['Percentage'] >= thresh_yellow) & (out_df['Rank'] > 10)].sort_values(by='Obtained', ascending=False).head(5)
-                if not angad_c.empty: awards_list.append([mk_para("Angad Stambh Award", style_an), mk_para("The Unmovable Pillar. 100% Attendance & Passed.", style_ad), mk_para("<br/>".join(angad_c['Name'].tolist()), style_aw)])
+                if not angad_c.empty: awards_list.append([mk_para("Angad Stambh Award", style_an), mk_para("The Unmovable Pillar. 100% Attendance & Passing All Tests. They stood firm in every exam!", style_ad), mk_para("<br/>".join(angad_c['Name'].tolist()), style_aw)])
                 
                 bhagirath_c = out_df[(out_df['Percentage'] >= thresh_yellow) & (out_df['Percentage'] < thresh_green) & (out_df['Present'] / out_df['Total Tests'] >= 0.8) & (out_df['Rank'] > 10) & (out_df['Absent'] > 0)].sort_values(by='Obtained', ascending=False).head(5)
-                if not bhagirath_c.empty: awards_list.append([mk_para("Bhagirath Prayas Award", style_an), mk_para("The Relentless Effort. High Attendance & Hard Work.", style_ad), mk_para("<br/>".join(bhagirath_c['Name'].tolist()), style_aw)])
+                if not bhagirath_c.empty: awards_list.append([mk_para("Bhagirath Prayas Award", style_an), mk_para("The Relentless Effort. High Attendance & Hard Work. Students striving to turn the tide and improve.", style_ad), mk_para("<br/>".join(bhagirath_c['Name'].tolist()), style_aw)])
 
                 aw_table = Table([["AWARD CATEGORY", "DESCRIPTION", "WINNER(S)"]] + awards_list, colWidths=[0.35*TABLE_WIDTH, 0.35*TABLE_WIDTH, 0.30*TABLE_WIDTH])
                 aw_style = TableStyle([('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")), ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER), ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONT', (0,0), (-1,0), 'Helvetica-Bold'), ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6), ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8)])
