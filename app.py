@@ -139,7 +139,7 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
 
     awards_to_give = [] 
 
-    # Award Logic
+    # --- AWARD LOGIC WITH DETAILED DESCRIPTIONS ---
     rank1 = out_df[out_df['Rank'] == 1]
     for _, r in rank1.iterrows():
         desc = f"The Batch Topper (Rank 1). Awarded for ruling the result sheet with the highest score and supreme excellence. [Score: {r['Obtained']}/{r['Total Marks']}]"
@@ -186,57 +186,63 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
         c.setLineWidth(1); c.rect(18*mm, 18*mm, width-36*mm, height-36*mm)
 
         # ----------------------------------------------------
-        # COMPACT TOP SECTION (To create space for Description)
+        # HEADER SECTION (Logo + Text Side-by-Side)
         # ----------------------------------------------------
         
-        # LOGO (Top Center) - Moved slightly UP to create more room below
+        # Center of the page horizontally
+        center_x = width / 2
+        
+        # Logo Position (Left of Text)
+        # Adjusted Y to avoid overlap with border
         if logo_img:
-            logo_w, logo_h = 30*mm, 30*mm
-            c.drawImage(logo_img, (width - logo_w)/2, height - 42*mm, width=logo_w, height=logo_h, mask='auto', preserveAspectRatio=True)
+            logo_w, logo_h = 28*mm, 28*mm
+            # Placed at center - 95mm (Left side)
+            c.drawImage(logo_img, center_x - 95*mm, height - 50*mm, width=logo_w, height=logo_h, mask='auto', preserveAspectRatio=True)
 
-        # Header Text (Academy Name)
-        c.setFont("Helvetica-Bold", 30)
+        # Academy Name (Centered but slightly offset to right to balance logo)
+        c.setFont("Helvetica-Bold", 32)
         c.setFillColor(COLOR_BLUE_HEADER)
-        c.drawCentredString(width/2, height - 52*mm, "MURLIDHAR ACADEMY")
+        # Adjusted Y down to match Logo center
+        c.drawCentredString(center_x + 10*mm, height - 42*mm, "MURLIDHAR ACADEMY")
         
         c.setFont("Helvetica", 12)
         c.setFillColor(colors.black)
-        c.drawCentredString(width/2, height - 59*mm, "JUNAGADH")
+        c.drawCentredString(center_x + 10*mm, height - 50*mm, "JUNAGADH")
 
         # Titles
         c.setFont("Helvetica-Oblique", 18)
         c.setFillColor(colors.black)
-        c.drawCentredString(width/2, height - 72*mm, "Certificate of Achievement")
+        c.drawCentredString(center_x, height - 72*mm, "Certificate of Achievement")
 
         # Main Result Title
         c.setFont("Helvetica-Bold", 14)
         c.setFillColor(colors.darkgrey)
-        c.drawCentredString(width/2, height - 82*mm, f"For: {report_title}")
+        c.drawCentredString(center_x, height - 82*mm, f"For: {report_title}")
 
         c.setFont("Helvetica", 12)
         c.setFillColor(colors.gray)
-        c.drawCentredString(width/2, height - 92*mm, "This is proudly presented to")
+        c.drawCentredString(center_x, height - 95*mm, "This is proudly presented to")
 
         # Student Name
         c.setFont("Helvetica-Bold", 32)
         c.setFillColor(theme_color)
-        c.drawCentredString(width/2, height - 108*mm, student_name.upper())
+        c.drawCentredString(center_x, height - 110*mm, student_name.upper())
         c.setStrokeColor(colors.black); c.setLineWidth(0.5)
-        c.line(width/2 - 60*mm, height - 111*mm, width/2 + 60*mm, height - 111*mm)
+        c.line(center_x - 60*mm, height - 113*mm, center_x + 60*mm, height - 113*mm)
 
         # Award Title
         c.setFont("Helvetica-Bold", 20)
         c.setFillColor(colors.black)
-        c.drawCentredString(width/2, height - 128*mm, title)
+        c.drawCentredString(center_x, height - 130*mm, title)
 
-        # Description (Moved Up to avoid overlap with signature)
+        # Description
         style = ParagraphStyle('Desc', parent=getSampleStyleSheet()['Normal'], fontName='Helvetica', fontSize=14, leading=18, alignment=TA_CENTER, textColor=colors.darkgray)
         p = Paragraph(desc, style)
         w, h = p.wrap(width - 70*mm, 50*mm)
-        p.drawOn(c, (width - w)/2, height - 148*mm)
+        p.drawOn(c, (width - w)/2, height - 150*mm)
 
         # ----------------------------------------------------
-        # BOTTOM SECTION (Signature & Date)
+        # BOTTOM SECTION (Signature)
         # ----------------------------------------------------
         
         # DATE (Left)
@@ -244,21 +250,15 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
         c.setFillColor(colors.black)
         c.drawString(30*mm, 35*mm, f"Date: {cert_date}")
         
-        # SIGNATURE IMAGE (Right side)
-        # Placed ABOVE the black line.
-        # Line Y is at 35mm. Image starts slightly above it at 36mm.
+        # SIGNATURE IMAGE (Moved Left)
+        # Old X was width-85mm. New X is width-95mm to move it left.
         if sign_img:
             sign_w, sign_h = 70*mm, 25*mm 
-            c.drawImage(sign_img, width - 85*mm, 36*mm, width=sign_w, height=sign_h, mask='auto', preserveAspectRatio=True)
+            c.drawImage(sign_img, width - 95*mm, 36*mm, width=sign_w, height=sign_h, mask='auto', preserveAspectRatio=True)
 
-        # Signature Line & Text
-        # Drawn AFTER image to ensure visibility if image overlaps
+        # Line & Text
         c.setLineWidth(1)
-        c.setStrokeColor(colors.black)
         c.line(width - 80*mm, 35*mm, width - 30*mm, 35*mm) 
-        
-        c.setFont("Helvetica-Bold", 12)
-        c.setFillColor(colors.black)
         c.drawCentredString((width - 80*mm + width - 30*mm)/2, 29*mm, "Director Signature")
 
         c.showPage()
@@ -271,6 +271,7 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
 st.set_page_config(page_title="Murlidhar Academy Report System", page_icon="🎓", layout="centered")
 st.title("🎓 Murlidhar Academy Report System")
 
+# Load Images silently
 if 'default_bg_data' not in st.session_state:
     st.session_state['default_bg_data'] = download_image_from_drive(DEFAULT_DRIVE_ID)
 if 'logo_data' not in st.session_state:
@@ -295,6 +296,7 @@ summary_page_title = st.text_input("Summary Page Title", "SUMMARY & ANALYSIS OF 
 uploaded_files = st.file_uploader("Upload CSV Files", type=['csv'], accept_multiple_files=True)
 
 if uploaded_files:
+    # 1. PROCESS DATA
     per_file_data = []
     for uploaded_file in uploaded_files:
         try:
@@ -303,9 +305,11 @@ if uploaded_files:
             file_max = find_possible_pts(df)
             names = find_name_series(df)
             obtained = extract_obtained_series(df)
+            
             if file_max is None:
                 file_max = obtained.max() if not obtained.empty else DEFAULT_TEST_MAX_PER_FILE
                 if file_max == 0: file_max = DEFAULT_TEST_MAX_PER_FILE
+            
             name_map = {}
             present_set = set()
             for n, score in zip(names, obtained):
@@ -467,10 +471,10 @@ if uploaded_files:
                 if not rank6_10.empty: awards_list.append([mk_para("Karna Veerta Award", style_an), mk_para("The Brave Warriors (Rank 6 to 10). Talented fighters who fought hard and missed the top 5 by a narrow margin.", style_ad), mk_para("<br/>".join(rank6_10['Name'].tolist()), style_aw)])
                 
                 angad_c = out_df[(out_df['Absent'] == 0) & (out_df['Percentage'] >= thresh_yellow) & (out_df['Rank'] > 10)].sort_values(by='Obtained', ascending=False).head(5)
-                if not angad_c.empty: awards_list.append([mk_para("Angad Stambh Award", style_an), mk_para("The Unmovable Pillar. 100% Attendance & Passed.", style_ad), mk_para("<br/>".join(angad_c['Name'].tolist()), style_aw)])
+                if not angad_c.empty: awards_list.append([mk_para("Angad Stambh Award", style_an), mk_para("The Unmovable Pillar. Awarded for 100% Attendance & Passing All Tests. They stood firm in every exam!", style_ad), mk_para("<br/>".join(angad_c['Name'].tolist()), style_aw)])
                 
                 bhagirath_c = out_df[(out_df['Percentage'] >= thresh_yellow) & (out_df['Percentage'] < thresh_green) & (out_df['Present'] / out_df['Total Tests'] >= 0.8) & (out_df['Rank'] > 10) & (out_df['Absent'] > 0)].sort_values(by='Obtained', ascending=False).head(5)
-                if not bhagirath_c.empty: awards_list.append([mk_para("Bhagirath Prayas Award", style_an), mk_para("The Relentless Effort. High Attendance & Hard Work.", style_ad), mk_para("<br/>".join(bhagirath_c['Name'].tolist()), style_aw)])
+                if not bhagirath_c.empty: awards_list.append([mk_para("Bhagirath Prayas Award", style_an), mk_para("The Relentless Effort. Awarded for High Attendance (>80%) & Hard Work. Students striving to turn the tide and improve.", style_ad), mk_para("<br/>".join(bhagirath_c['Name'].tolist()), style_aw)])
 
                 aw_table = Table([["AWARD CATEGORY", "DESCRIPTION", "WINNER(S)"]] + awards_list, colWidths=[0.35*TABLE_WIDTH, 0.35*TABLE_WIDTH, 0.30*TABLE_WIDTH])
                 aw_style = TableStyle([('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")), ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER), ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONT', (0,0), (-1,0), 'Helvetica-Bold'), ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6), ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8)])
