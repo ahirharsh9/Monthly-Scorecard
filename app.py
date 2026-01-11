@@ -25,22 +25,17 @@ SIGNATURE_ID = "1U0es4MVJgGniK27rcrA6hiLFFRazmwCs"
 LOGO_ID = "1BGvxglcgZ2G6FdVelLjXZVo-_v4e4a42"
 
 # ==========================================
-# 🎛️ CERTIFICATE LAYOUT CONFIGURATION (USER SETTINGS)
+# 🎛️ CERTIFICATE LAYOUT CONFIGURATION
 # ==========================================
+CERT_LOGO_WIDTH = 38 * mm       
+CERT_LOGO_HEIGHT = 38 * mm      
+CERT_LOGO_X_POS = 40 * mm       
+CERT_LOGO_Y_POS = 145 * mm      
 
-# 1. LOGO SETTINGS
-CERT_LOGO_WIDTH = 40 * mm       # લોગોની પહોળાઈ (Size)
-CERT_LOGO_HEIGHT = 40 * mm      # લોગોની ઊંચાઈ
-CERT_LOGO_X_POS = 36 * mm       # લોગો ડાબી બાજુથી કેટલો દૂર રાખવો
-CERT_LOGO_Y_POS = 142 * mm      # લોગો નીચેથી કેટલો ઉપર રાખવો (Vertically)
-
-# 2. SIGNATURE SETTINGS
-CERT_SIGN_WIDTH = 60 * mm       # સહીની સાઈઝ (પહોળાઈ)
-CERT_SIGN_HEIGHT = 22 * mm      # સહીની ઊંચાઈ
-CERT_SIGN_X_POS = 235 * mm      # સહીની પોઝિશન (Center Point of Signature Block)
-CERT_SIGN_Y_POS = 36 * mm       # સહી નીચેથી કેટલી ઉપર રાખવી
-
-# ==========================================
+CERT_SIGN_WIDTH = 65 * mm       
+CERT_SIGN_HEIGHT = 22 * mm      
+CERT_SIGN_X_POS = 235 * mm      
+CERT_SIGN_Y_POS = 38 * mm       
 
 LEFT_MARGIN_mm = 18
 RIGHT_MARGIN_mm = 18
@@ -157,14 +152,15 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
 
     awards_to_give = [] 
 
-    # --- AWARD LOGIC WITH RESEARCHED DESCRIPTIONS ---
+    # --- POWERFUL & MOTIVATING DESCRIPTIONS ---
 
     # 1. Vikramaditya (Rank 1)
     rank1 = out_df[out_df['Rank'] == 1]
     for _, r in rank1.iterrows():
         desc = (
-            "Named after Samrat Vikramaditya, known for his legendary wisdom, valor, and justice. "
-            f"Just like the great king, you have demonstrated supreme excellence and leadership by securing the 1st Rank. [Score: {r['Obtained']}/{r['Total Marks']}]"
+            "Like the legendary King Vikramaditya, known for his wisdom and victory, "
+            "you have conquered this challenge with supreme excellence! "
+            f"Your hard work has placed you at the very top. Keep ruling! [Score: {r['Obtained']}/{r['Total Marks']}]"
         )
         awards_to_give.append((r['Name'], "THE VIKRAMADITYA EXCELLENCE AWARD", desc, COLOR_GOLD))
 
@@ -172,8 +168,8 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
     rank2 = out_df[out_df['Rank'] == 2]
     for _, r in rank2.iterrows():
         desc = (
-            "Acharya Chanakya was a master strategist and scholar who shaped empires with his intellect. "
-            f"Awarded for your sharp intelligence, strategic preparation, and outstanding performance in securing the 2nd Rank. [Score: {r['Obtained']}/{r['Total Marks']}]"
+            "With the sharp intellect of Acharya Chanakya, you have proven that strategy determines success. "
+            f"Your outstanding intelligence and dedication have secured you the prestigious 2nd Rank. [Score: {r['Obtained']}/{r['Total Marks']}]"
         )
         awards_to_give.append((r['Name'], "THE CHANAKYA NITI AWARD", desc, COLOR_BLUE_HEADER))
 
@@ -181,8 +177,8 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
     rank3 = out_df[out_df['Rank'] == 3]
     for _, r in rank3.iterrows():
         desc = (
-            "Arjuna, the greatest archer, was known for his unwavering focus on the bird's eye. "
-            f"Awarded for your laser-sharp concentration, precision, and dedication in securing the 3rd Rank. [Score: {r['Obtained']}/{r['Total Marks']}]"
+            "Just like Arjuna saw only the bird's eye, your laser-sharp focus and precision have hit the mark! "
+            f"This award celebrates your unwavering concentration and excellent performance (Rank 3). [Score: {r['Obtained']}/{r['Total Marks']}]"
         )
         awards_to_give.append((r['Name'], "THE ARJUNA FOCUS AWARD", desc, COLOR_SAFFRON))
 
@@ -190,8 +186,8 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
     rank45 = out_df[out_df['Rank'].isin([4, 5])]
     for _, r in rank45.iterrows():
         desc = (
-            "Bhakt Dhruva's determination earned him a permanent place as the Pole Star (Dhruva Tara). "
-            f"Awarded for your steadfast consistency and shining bright in the top league like a star. [Score: {r['Obtained']}]"
+            "Like the eternal Dhruva Tara (Pole Star), your performance shines bright with stability and consistency. "
+            f"You are a rising star with immense potential to lead the sky! [Score: {r['Obtained']}]"
         )
         awards_to_give.append((r['Name'], "THE DHRUVA TARA AWARD", desc, COLOR_BLUE_HEADER))
 
@@ -199,8 +195,8 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
     rank6_10 = out_df[out_df['Rank'].isin([6,7,8,9,10])]
     for _, r in rank6_10.iterrows():
         desc = (
-            "Maharathi Karna was a warrior of matchless talent and resilience. "
-            f"Awarded to the brave fighter who fought hard, displayed immense potential, and missed the top 5 by a narrow margin. [Score: {r['Obtained']}]"
+            "A true warrior is defined by their spirit! Like Maharathi Karna, you fought bravely and showed immense talent. "
+            f"You are just steps away from the top. Keep fighting, victory is yours! [Score: {r['Obtained']}]"
         )
         awards_to_give.append((r['Name'], "THE KARNA VEERTA AWARD", desc, COLOR_SAFFRON))
 
@@ -208,8 +204,8 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
     angad_candidates = out_df[(out_df['Absent'] == 0) & (out_df['Percentage'] >= thresh_yellow) & (out_df['Rank'] > 10)]
     for _, r in angad_candidates.iterrows():
         desc = (
-            "In Ramayana, Angad planted his foot firmly in Ravana's court, impossible to move. "
-            "Awarded for your unshakeable consistency—100% Attendance and passing every challenge firmly! [Attendance: 100%]"
+            "Firm as Angad's foot in Ravana's court! Your unshakeable discipline and 100% Attendance prove that consistency is the key to success. "
+            "You stood firm in every test! [Attendance: 100%]"
         )
         awards_to_give.append((r['Name'], "THE ANGAD STAMBH AWARD", desc, COLOR_BLUE_HEADER))
 
@@ -220,8 +216,8 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
     ]
     for _, r in bhagirath_candidates.iterrows():
         desc = (
-            "King Bhagirath performed severe penance to bring the River Ganga to Earth. "
-            "Awarded for your relentless effort, high attendance, and determination to improve against all odds."
+            "Like Bhagirath's relentless penance to bring Ganga to Earth, your hard work and persistence are truly inspiring. "
+            "This award honors your 'Never Give Up' attitude and continuous improvement."
         )
         awards_to_give.append((r['Name'], "THE BHAGIRATH PRAYAS AWARD", desc, COLOR_SAFFRON))
 
@@ -250,7 +246,7 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
         c.setFillColor(colors.black)
         c.drawCentredString(center_x, height - 60*mm, "JUNAGADH")
 
-        # Titles
+        # Titles - SHIFTED UP
         c.setFont("Helvetica-Oblique", 18)
         c.setFillColor(colors.black)
         c.drawCentredString(center_x, height - 72*mm, "Certificate of Achievement")
@@ -262,25 +258,26 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
 
         c.setFont("Helvetica", 12)
         c.setFillColor(colors.gray)
-        c.drawCentredString(center_x, height - 95*mm, "This is proudly presented to")
+        c.drawCentredString(center_x, height - 92*mm, "This is proudly presented to")
 
-        # Student Name
+        # Student Name - SHIFTED UP
         c.setFont("Helvetica-Bold", 32)
         c.setFillColor(theme_color)
-        c.drawCentredString(center_x, height - 110*mm, student_name.upper())
+        c.drawCentredString(center_x, height - 106*mm, student_name.upper()) # Moved up from 110
         c.setStrokeColor(colors.black); c.setLineWidth(0.5)
-        c.line(center_x - 60*mm, height - 113*mm, center_x + 60*mm, height - 113*mm)
+        c.line(center_x - 60*mm, height - 109*mm, center_x + 60*mm, height - 109*mm)
 
-        # Award Title
+        # Award Title - SHIFTED UP
         c.setFont("Helvetica-Bold", 20)
         c.setFillColor(colors.black)
-        c.drawCentredString(center_x, height - 130*mm, title)
+        c.drawCentredString(center_x, height - 125*mm, title) # Moved up from 130
 
-        # Description
+        # Description - SHIFTED UP
         style = ParagraphStyle('Desc', parent=getSampleStyleSheet()['Normal'], fontName='Helvetica', fontSize=13, leading=16, alignment=TA_CENTER, textColor=colors.darkgray)
         p = Paragraph(desc, style)
-        w, h = p.wrap(width - 60*mm, 50*mm) # Gave a bit more width for description
-        p.drawOn(c, (width - w)/2, height - 155*mm)
+        w, h = p.wrap(width - 60*mm, 50*mm)
+        # Positioned at height - 145mm to give clear space for signature below
+        p.drawOn(c, (width - w)/2, height - 148*mm) 
 
         # ----------------------------------------------------
         # BOTTOM SECTION (Signature & Date)
@@ -291,7 +288,7 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
         c.setFillColor(colors.black)
         c.drawString(30*mm, 35*mm, f"Date: {cert_date}")
         
-        # SIGNATURE BLOCK (Centered on CERT_SIGN_X_POS)
+        # SIGNATURE BLOCK (Using Config Coordinates)
         
         # 1. Signature Image
         if sign_img:
@@ -322,7 +319,6 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
 st.set_page_config(page_title="Murlidhar Academy Report System", page_icon="🎓", layout="centered")
 st.title("🎓 Murlidhar Academy Report System")
 
-# Load Images silently
 if 'default_bg_data' not in st.session_state:
     st.session_state['default_bg_data'] = download_image_from_drive(DEFAULT_DRIVE_ID)
 if 'logo_data' not in st.session_state:
@@ -347,7 +343,6 @@ summary_page_title = st.text_input("Summary Page Title", "SUMMARY & ANALYSIS OF 
 uploaded_files = st.file_uploader("Upload CSV Files", type=['csv'], accept_multiple_files=True)
 
 if uploaded_files:
-    # 1. PROCESS DATA
     per_file_data = []
     for uploaded_file in uploaded_files:
         try:
@@ -356,11 +351,9 @@ if uploaded_files:
             file_max = find_possible_pts(df)
             names = find_name_series(df)
             obtained = extract_obtained_series(df)
-            
             if file_max is None:
                 file_max = obtained.max() if not obtained.empty else DEFAULT_TEST_MAX_PER_FILE
                 if file_max == 0: file_max = DEFAULT_TEST_MAX_PER_FILE
-            
             name_map = {}
             present_set = set()
             for n, score in zip(names, obtained):
@@ -496,7 +489,7 @@ if uploaded_files:
                 c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages_approx-1}/{total_pages_approx}")
                 add_social_links(c); c.showPage()
 
-                # Hall of Fame
+                # Hall of Fame (UPDATED: RESTORED DETAILED DESCRIPTIONS)
                 draw_bg_and_header(c, "HALL OF FAME")
                 styles = getSampleStyleSheet()
                 style_an = ParagraphStyle('AN', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.black, alignment=1)
@@ -506,6 +499,7 @@ if uploaded_files:
                 awards_list = []
                 def mk_para(text, style): return Paragraph(text, style)
                 
+                # RE-ADDED FULL DESCRIPTIONS FOR HALL OF FAME
                 rank1 = out_df[out_df['Rank'] == 1]
                 if not rank1.empty: awards_list.append([mk_para("Vikramaditya Excellence Award", style_an), mk_para("The Batch Topper (Rank 1). Awarded for ruling the result sheet with the highest score and supreme excellence.", style_ad), mk_para("<br/>".join(rank1['Name'].tolist()), style_aw)])
                 
@@ -525,7 +519,7 @@ if uploaded_files:
                 if not angad_c.empty: awards_list.append([mk_para("Angad Stambh Award", style_an), mk_para("The Unmovable Pillar. 100% Attendance & Passing All Tests. They stood firm in every exam!", style_ad), mk_para("<br/>".join(angad_c['Name'].tolist()), style_aw)])
                 
                 bhagirath_c = out_df[(out_df['Percentage'] >= thresh_yellow) & (out_df['Percentage'] < thresh_green) & (out_df['Present'] / out_df['Total Tests'] >= 0.8) & (out_df['Rank'] > 10) & (out_df['Absent'] > 0)].sort_values(by='Obtained', ascending=False).head(5)
-                if not bhagirath_c.empty: awards_list.append([mk_para("Bhagirath Prayas Award", style_an), mk_para("The Relentless Effort. High Attendance & Hard Work. Students striving to turn the tide and improve.", style_ad), mk_para("<br/>".join(bhagirath_c['Name'].tolist()), style_aw)])
+                if not bhagirath_c.empty: awards_list.append([mk_para("Bhagirath Prayas Award", style_an), mk_para("The Relentless Effort. Awarded for High Attendance (>80%) & Hard Work. Students striving to turn the tide and improve.", style_ad), mk_para("<br/>".join(bhagirath_c['Name'].tolist()), style_aw)])
 
                 aw_table = Table([["AWARD CATEGORY", "DESCRIPTION", "WINNER(S)"]] + awards_list, colWidths=[0.35*TABLE_WIDTH, 0.35*TABLE_WIDTH, 0.30*TABLE_WIDTH])
                 aw_style = TableStyle([('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")), ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER), ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONT', (0,0), (-1,0), 'Helvetica-Bold'), ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6), ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8)])
