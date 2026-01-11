@@ -4,6 +4,7 @@ import re
 import math
 import io
 import datetime
+import requests
 from PIL import Image
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -16,6 +17,9 @@ from reportlab.lib.utils import ImageReader
 # ---------------- CONFIG ----------------
 TG_LINK = "https://t.me/MurlidharAcademy"
 IG_LINK = "https://www.instagram.com/murlidhar_academy_official/"
+
+# ✅ Updated Google Drive Image ID
+DEFAULT_DRIVE_ID = "1a1ZK5uiLl0a63Pto1EQDUY0VaIlqp21u"
 
 LEFT_MARGIN_mm = 18
 RIGHT_MARGIN_mm = 18
@@ -31,6 +35,26 @@ SOFT_AMBER  = colors.HexColor("#FFF6DF")  # Average
 SOFT_CORAL  = colors.HexColor("#FFEFEF")  # Needs Improvement
 
 # ---------------- HELPERS ----------------
+def get_drive_url(file_id):
+    return f'https://drive.google.com/uc?export=download&id={file_id}'
+
+@st.cache_data(show_spinner=False)
+def download_default_bg(file_id):
+    try:
+        url = get_drive_url(file_id)
+        response = requests.get(url, allow_redirects=True)
+        if response.status_code == 200:
+            try:
+                img = Image.open(io.BytesIO(response.content))
+                img.verify()
+                return io.BytesIO(response.content)
+            except Exception:
+                return None
+        else:
+            return None
+    except:
+        return None
+
 def normalize_name(s):
     if pd.isna(s): return ""
     s = str(s).strip()
@@ -98,6 +122,10 @@ def get_soft_row_color(pct, t_green, t_yellow):
 st.set_page_config(page_title="Consolidated Monthly Report", page_icon="📅", layout="centered")
 st.title("📅 Consolidated Monthly Report Generator")
 
+# --- LOAD DEFAULT BG (Silent Load) ---
+if 'default_bg_data' not in st.session_state:
+    st.session_state['default_bg_data'] = download_default_bg(DEFAULT_DRIVE_ID)
+
 # --- SIDEBAR CONFIG ---
 with st.sidebar:
     st.header("🎨 Color Grading Rules")
@@ -107,14 +135,14 @@ with st.sidebar:
     st.caption("Below Yellow will be Red/Coral.")
     
     st.markdown("---")
-    st.info("Ensure background image has space for Social Media links at the bottom.")
+    st.info("Default background is loaded automatically from Google Drive if no custom image is uploaded.")
 
 # --- MAIN INPUTS ---
 col1, col2 = st.columns(2)
 report_header_title = col1.text_input("Report Header Title (in PDF)", f"MONTHLY RESULT REPORT - {datetime.date.today().strftime('%B %Y')}")
 output_filename = col2.text_input("Output Filename (without .pdf)", f"Monthly_Report_{datetime.date.today().strftime('%b_%Y')}")
 
-bg_file = st.file_uploader("Upload Background Template Image (Optional)", type=['png', 'jpg', 'jpeg', 'webp'])
+bg_file = st.file_uploader("Upload Custom Background (Optional)", type=['png', 'jpg', 'jpeg', 'webp'])
 uploaded_files = st.file_uploader("Upload CSV Files (Select Multiple)", type=['csv'], accept_multiple_files=True)
 
 if uploaded_files:
@@ -196,10 +224,16 @@ if uploaded_files:
             c = canvas.Canvas(buffer, pagesize=A4)
             PAGE_W, PAGE_H = A4
             
+            # HANDLE IMAGE LOGIC (Custom > Default > None)
             TEMPLATE_IMG = None
             if bg_file:
                 try:
                     TEMPLATE_IMG = ImageReader(Image.open(bg_file))
+                except: pass
+            elif st.session_state['default_bg_data']:
+                try:
+                    st.session_state['default_bg_data'].seek(0)
+                    TEMPLATE_IMG = ImageReader(Image.open(st.session_state['default_bg_data']))
                 except: pass
 
             def draw_bg_and_header(c, title_text):
@@ -212,11 +246,8 @@ if uploaded_files:
                 c.drawCentredString(PAGE_W/2, TITLE_Y, title_text)
 
             def add_social_links(c):
-                # Only add links if template is used (assuming template has the icons)
                 if TEMPLATE_IMG:
-                    # Telegram Link Area (approx coordinates based on Murlidhar template)
                     c.linkURL(TG_LINK, (20*mm, 24*mm, 106*mm, 45*mm))
-                    # Instagram Link Area
                     c.linkURL(IG_LINK, (110*mm, 24*mm, 190*mm, 45*mm))
 
             # Table Setup
@@ -238,7 +269,7 @@ if uploaded_files:
                 data_rows.append(row)
 
             total_pages_main = math.ceil(len(data_rows) / ROWS_PER_PAGE)
-            total_pages = total_pages_main + 1 # +1 for Summary
+            total_pages = total_pages_main + 1 
             TABLE_TOP_Y = PAGE_H - (TITLE_Y_mm_from_top * mm) - (TABLE_SPACE_AFTER_TITLE_mm * mm)
 
             # --- MAIN PAGES LOOP ---
@@ -277,12 +308,10 @@ if uploaded_files:
                 c.setFillColor(colors.black)
                 c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {p+1}/{total_pages}")
                 
-                # ✅ ADD LINKS
                 add_social_links(c)
                 c.showPage()
 
             # --- SUMMARY PAGE ---
-            # ✅ Changed Title as requested
             draw_bg_and_header(c, "SUMMARY & ANALYSIS OF THE MONTH")
             
             avg_obt = out_df['Obtained'].mean()
@@ -341,7 +370,6 @@ if uploaded_files:
             c.setFillColor(colors.black)
             c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages}/{total_pages}")
             
-            # ✅ ADD LINKS ON SUMMARY PAGE TOO
             add_social_links(c)
             
             c.showPage()
