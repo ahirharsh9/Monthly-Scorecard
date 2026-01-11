@@ -132,72 +132,66 @@ def get_smart_row_color(pct, is_even_row, t_green, t_yellow):
     return colors.HexColor("#FFEBEE") if is_even_row else colors.HexColor("#FFCDD2")
 
 # ---------------- CERTIFICATE GENERATOR FUNCTION ----------------
-def generate_certificates_pdf(out_df, thresh_yellow, thresh_green):
+def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title):
     buffer = io.BytesIO()
-    # Landscape A4 for Certificates
     c = canvas.Canvas(buffer, pagesize=landscape(A4))
     width, height = landscape(A4)
     
-    # Define Awards Logic
-    awards_to_give = [] # List of tuples: (Student Name, Award Title, Description, Color)
+    awards_to_give = [] 
 
     # 1. Vikramaditya (Rank 1)
     rank1 = out_df[out_df['Rank'] == 1]
     for _, r in rank1.iterrows():
-        awards_to_give.append((r['Name'], "THE VIKRAMADITYA EXCELLENCE AWARD", 
-                               "For securing the 1st Rank with the highest score. You are the King of the Batch!", COLOR_GOLD))
+        desc = f"The Batch Topper (Rank 1). Awarded for ruling the result sheet with the highest score and supreme excellence. [Score: {r['Obtained']}/{r['Total Marks']}]"
+        awards_to_give.append((r['Name'], "THE VIKRAMADITYA EXCELLENCE AWARD", desc, COLOR_GOLD))
 
     # 2. Chanakya (Rank 2)
     rank2 = out_df[out_df['Rank'] == 2]
     for _, r in rank2.iterrows():
-        awards_to_give.append((r['Name'], "THE CHANAKYA NITI AWARD", 
-                               "For outstanding intelligence and strategy in securing the 2nd Rank.", COLOR_BLUE_HEADER))
+        desc = f"The Intellectual Strategist (Rank 2). Awarded for sharp intelligence and securing the second-highest position. [Score: {r['Obtained']}/{r['Total Marks']}]"
+        awards_to_give.append((r['Name'], "THE CHANAKYA NITI AWARD", desc, COLOR_BLUE_HEADER))
 
     # 3. Arjuna (Rank 3)
     rank3 = out_df[out_df['Rank'] == 3]
     for _, r in rank3.iterrows():
-        awards_to_give.append((r['Name'], "THE ARJUNA FOCUS AWARD", 
-                               "For unwavering focus, precision, and securing the 3rd Rank.", COLOR_SAFFRON))
+        desc = f"The Focused Archer (Rank 3). Awarded for unwavering focus, precision, and hitting the target score. [Score: {r['Obtained']}/{r['Total Marks']}]"
+        awards_to_give.append((r['Name'], "THE ARJUNA FOCUS AWARD", desc, COLOR_SAFFRON))
 
     # 4. Dhruva (Rank 4 & 5)
     rank45 = out_df[out_df['Rank'].isin([4, 5])]
     for _, r in rank45.iterrows():
-        awards_to_give.append((r['Name'], "THE DHRUVA TARA AWARD", 
-                               "For shining bright and maintaining a consistent high position (Rank 4-5).", COLOR_BLUE_HEADER))
+        desc = f"The Shining Stars (Rank {r['Rank']}). Awarded for maintaining a high position consistently like the eternal Pole Star. [Score: {r['Obtained']}]"
+        awards_to_give.append((r['Name'], "THE DHRUVA TARA AWARD", desc, COLOR_BLUE_HEADER))
 
     # 5. Karna (Rank 6-10)
     rank6_10 = out_df[out_df['Rank'].isin([6,7,8,9,10])]
     for _, r in rank6_10.iterrows():
-        awards_to_give.append((r['Name'], "THE KARNA VEERTA AWARD", 
-                               "The Unsung Warrior. For fighting hard and securing a top 10 position.", COLOR_SAFFRON))
+        desc = f"The Brave Warrior (Rank {r['Rank']}). A talented fighter who fought hard and missed the top 5 by a narrow margin. [Score: {r['Obtained']}]"
+        awards_to_give.append((r['Name'], "THE KARNA VEERTA AWARD", desc, COLOR_SAFFRON))
 
-    # 6. Angad Stambh (100% Present + Passed + Rank > 10)
+    # 6. Angad Stambh (100% Present)
     angad_candidates = out_df[(out_df['Absent'] == 0) & (out_df['Percentage'] >= thresh_yellow) & (out_df['Rank'] > 10)]
     for _, r in angad_candidates.iterrows():
-        awards_to_give.append((r['Name'], "THE ANGAD STAMBH AWARD", 
-                               "For Unmovable Consistency. Awarded for 100% Attendance & Passing all tests.", COLOR_BLUE_HEADER))
+        desc = "The Unmovable Pillar. Awarded for 100% Attendance & Passing All Tests. They stood firm in every exam! [Attendance: 100%]"
+        awards_to_give.append((r['Name'], "THE ANGAD STAMBH AWARD", desc, COLOR_BLUE_HEADER))
 
-    # 7. Bhagirath Prayas (Hard Work)
+    # 7. Bhagirath Prayas
     bhagirath_candidates = out_df[
         (out_df['Percentage'] >= thresh_yellow) & (out_df['Percentage'] < thresh_green) &
         (out_df['Present'] / out_df['Total Tests'] >= 0.8) & (out_df['Rank'] > 10) & (out_df['Absent'] > 0)
     ]
     for _, r in bhagirath_candidates.iterrows():
-        awards_to_give.append((r['Name'], "THE BHAGIRATH PRAYAS AWARD", 
-                               "For Relentless Effort. Awarded for high attendance and continuous improvement.", COLOR_SAFFRON))
+        desc = "The Relentless Effort. Awarded for High Attendance (>80%) & Hard Work. Striving to turn the tide and improve."
+        awards_to_give.append((r['Name'], "THE BHAGIRATH PRAYAS AWARD", desc, COLOR_SAFFRON))
 
     # DRAWING CERTIFICATES
     for student_name, title, desc, theme_color in awards_to_give:
-        # Background Border
+        # Borders
         c.setStrokeColor(theme_color)
-        c.setLineWidth(5)
-        c.rect(15*mm, 15*mm, width-30*mm, height-30*mm)
-        
-        # Inner thin border
-        c.setLineWidth(1)
-        c.rect(18*mm, 18*mm, width-36*mm, height-36*mm)
+        c.setLineWidth(5); c.rect(15*mm, 15*mm, width-30*mm, height-30*mm)
+        c.setLineWidth(1); c.rect(18*mm, 18*mm, width-36*mm, height-36*mm)
 
-        # Academy Name
+        # Header
         c.setFont("Helvetica-Bold", 30)
         c.setFillColor(COLOR_BLUE_HEADER)
         c.drawCentredString(width/2, height - 45*mm, "MURLIDHAR ACADEMY")
@@ -206,49 +200,49 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green):
         c.setFillColor(colors.black)
         c.drawCentredString(width/2, height - 52*mm, "JUNAGADH")
 
-        # "Certificate of Appreciation"
+        # Titles
         c.setFont("Helvetica-Oblique", 18)
         c.setFillColor(colors.black)
         c.drawCentredString(width/2, height - 70*mm, "Certificate of Achievement")
 
-        # "This is proudly presented to"
+        # ✅ MAIN RESULT TITLE (Added Here)
+        c.setFont("Helvetica-Bold", 14)
+        c.setFillColor(colors.darkgrey)
+        c.drawCentredString(width/2, height - 80*mm, f"For: {report_title}")
+
         c.setFont("Helvetica", 12)
         c.setFillColor(colors.gray)
-        c.drawCentredString(width/2, height - 80*mm, "This is proudly presented to")
+        c.drawCentredString(width/2, height - 92*mm, "This is proudly presented to")
 
-        # STUDENT NAME
+        # Student Name
         c.setFont("Helvetica-Bold", 32)
         c.setFillColor(theme_color)
-        c.drawCentredString(width/2, height - 95*mm, student_name.upper())
+        c.drawCentredString(width/2, height - 108*mm, student_name.upper())
+        c.setStrokeColor(colors.black); c.setLineWidth(0.5)
+        c.line(width/2 - 60*mm, height - 111*mm, width/2 + 60*mm, height - 111*mm)
 
-        # Line under name
-        c.setStrokeColor(colors.black)
-        c.setLineWidth(0.5)
-        c.line(width/2 - 60*mm, height - 98*mm, width/2 + 60*mm, height - 98*mm)
-
-        # AWARD TITLE
+        # Award Title
         c.setFont("Helvetica-Bold", 20)
         c.setFillColor(colors.black)
-        c.drawCentredString(width/2, height - 115*mm, title)
+        c.drawCentredString(width/2, height - 130*mm, title)
 
-        # Description (Using Paragraph for wrapping)
+        # Description
         style = ParagraphStyle('Desc', parent=getSampleStyleSheet()['Normal'], fontName='Helvetica', fontSize=14, leading=18, alignment=TA_CENTER, textColor=colors.darkgray)
         p = Paragraph(desc, style)
-        w, h = p.wrap(width - 80*mm, 50*mm)
-        p.drawOn(c, (width - w)/2, height - 135*mm)
+        w, h = p.wrap(width - 70*mm, 50*mm)
+        p.drawOn(c, (width - w)/2, height - 150*mm)
 
-        # Date and Signature
+        # ✅ SIGNATURE FIX (Moved Line Up)
         today_str = datetime.date.today().strftime('%d-%m-%Y')
-        
         c.setFont("Helvetica-Bold", 12)
         c.setFillColor(colors.black)
         
-        # Date Left
         c.drawString(30*mm, 35*mm, f"Date: {today_str}")
         
-        # Signature Right
-        c.drawRightString(width - 30*mm, 35*mm, "Director Signature")
-        c.line(width - 70*mm, 37*mm, width - 30*mm, 37*mm)
+        # Line Above Text
+        c.setLineWidth(1)
+        c.line(width - 80*mm, 45*mm, width - 30*mm, 45*mm) 
+        c.drawCentredString((width - 80*mm + width - 30*mm)/2, 38*mm, "Director Signature")
 
         c.showPage()
 
@@ -281,11 +275,11 @@ summary_page_title = st.text_input("Summary Page Title", "SUMMARY & ANALYSIS OF 
 uploaded_files = st.file_uploader("Upload CSV Files", type=['csv'], accept_multiple_files=True)
 
 if uploaded_files:
-    # 1. PROCESS DATA FIRST
+    # 1. PROCESS DATA
     per_file_data = []
     for uploaded_file in uploaded_files:
         try:
-            uploaded_file.seek(0) # Reset pointer
+            uploaded_file.seek(0)
             df = pd.read_csv(uploaded_file)
             file_max = find_possible_pts(df)
             names = find_name_series(df)
@@ -332,14 +326,13 @@ if uploaded_files:
         out_df['Rank'] = out_df['Obtained'].rank(method='dense', ascending=False).astype(int)
         out_df = out_df.sort_values(by=['Rank', 'Name']).reset_index(drop=True)
 
-        st.success("✅ Data Processed Successfully! Choose an action below:")
+        st.success("✅ Data Processed Successfully!")
 
         col_btn1, col_btn2 = st.columns(2)
 
-        # --- BUTTON 1: GENERATE REPORT PDF ---
+        # --- BUTTON 1: REPORT PDF ---
         if col_btn1.button("📄 Generate Full Report PDF", type="primary"):
             with st.spinner("Generating Report..."):
-                # ... (PDF Generation Logic from previous response - condensed for brevity) ...
                 buffer = io.BytesIO()
                 c = canvas.Canvas(buffer, pagesize=A4)
                 PAGE_W, PAGE_H = A4
@@ -379,10 +372,8 @@ if uploaded_files:
                     draw_bg_and_header(c, report_header_title)
                     t = Table(page_data, colWidths=col_widths, repeatRows=1)
                     style = TableStyle([
-                        ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")),
-                        ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER),
-                        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                        ('FONT', (0,0), (-1,0), 'Helvetica-Bold'),
+                        ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")), ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER),
+                        ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONT', (0,0), (-1,0), 'Helvetica-Bold'),
                         ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('ALIGN', (2,1), (2,-1), 'LEFT'),
                         ('LEFTPADDING', (2,1), (2,-1), 6), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('FONTSIZE', (0,0), (-1,-1), 9)
                     ])
@@ -392,8 +383,7 @@ if uploaded_files:
                         bg = get_smart_row_color(pct, i%2==0, thresh_green, thresh_yellow)
                         style.add('BACKGROUND', (0,i), (-1,i), bg)
                         style.add('TEXTCOLOR', (0,i), (-1,i), colors.black)
-                    t.setStyle(style)
-                    w, h = t.wrapOn(c, TABLE_WIDTH, PAGE_H)
+                    t.setStyle(style); w, h = t.wrapOn(c, TABLE_WIDTH, PAGE_H)
                     t.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
                     c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.white)
                     c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {p+1}/{total_pages_approx}")
@@ -409,7 +399,6 @@ if uploaded_files:
                     ["Total Tests", str(total_tests_count), "Number of CSVs processed"],
                     ["Batch Average", f"{avg_obt:.2f}", "Overall class performance"],
                     ["Highest Score", f"{out_df['Obtained'].max()}", "Top ranker score"],
-                    ["Lowest Score", f"{out_df['Obtained'].min()}", "Needs attention"],
                     ["Pass Candidates", f"{pass_count}", f">={thresh_yellow}% Score"],
                     ["TOP 5 RANKERS", "", ""],
                 ]
@@ -419,10 +408,8 @@ if uploaded_files:
                 
                 st_table = Table(summary_data, colWidths=[0.25*TABLE_WIDTH, 0.25*TABLE_WIDTH, 0.50*TABLE_WIDTH])
                 sum_style = TableStyle([
-                    ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")),
-                    ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER),
-                    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                    ('FONT', (0,0), (-1,0), 'Helvetica-Bold'),
+                    ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")), ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER),
+                    ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONT', (0,0), (-1,0), 'Helvetica-Bold'),
                     ('ALIGN', (0,0), (-1,-1), 'LEFT'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')
                 ])
                 for i, row in enumerate(summary_data):
@@ -446,26 +433,27 @@ if uploaded_files:
                 awards_list = []
                 def mk_para(text, style): return Paragraph(text, style)
                 
+                # RE-ADDED FULL DESCRIPTIONS FOR HALL OF FAME
                 rank1 = out_df[out_df['Rank'] == 1]
-                if not rank1.empty: awards_list.append([mk_para("Vikramaditya Excellence Award", style_an), mk_para("The Batch Topper (Rank 1). Awarded for ruling the result sheet.", style_ad), mk_para("<br/>".join(rank1['Name'].tolist()), style_aw)])
+                if not rank1.empty: awards_list.append([mk_para("Vikramaditya Excellence Award", style_an), mk_para("The Batch Topper (Rank 1). Awarded for ruling the result sheet with the highest score and supreme excellence.", style_ad), mk_para("<br/>".join(rank1['Name'].tolist()), style_aw)])
                 
                 rank2 = out_df[out_df['Rank'] == 2]
-                if not rank2.empty: awards_list.append([mk_para("Chanakya Niti Award", style_an), mk_para("The Intellectual Strategist (Rank 2).", style_ad), mk_para("<br/>".join(rank2['Name'].tolist()), style_aw)])
+                if not rank2.empty: awards_list.append([mk_para("Chanakya Niti Award", style_an), mk_para("The Intellectual Strategist (Rank 2). Awarded for sharp intelligence and securing the second-highest position.", style_ad), mk_para("<br/>".join(rank2['Name'].tolist()), style_aw)])
                 
                 rank3 = out_df[out_df['Rank'] == 3]
-                if not rank3.empty: awards_list.append([mk_para("Arjuna Focus Award", style_an), mk_para("The Focused Archer (Rank 3).", style_ad), mk_para("<br/>".join(rank3['Name'].tolist()), style_aw)])
+                if not rank3.empty: awards_list.append([mk_para("Arjuna Focus Award", style_an), mk_para("The Focused Archer (Rank 3). Awarded for unwavering focus, precision, and hitting the target score.", style_ad), mk_para("<br/>".join(rank3['Name'].tolist()), style_aw)])
                 
                 rank45 = out_df[out_df['Rank'].isin([4, 5])]
-                if not rank45.empty: awards_list.append([mk_para("Dhruva Tara Award", style_an), mk_para("The Shining Stars (Rank 4 & 5).", style_ad), mk_para("<br/>".join(rank45['Name'].tolist()), style_aw)])
+                if not rank45.empty: awards_list.append([mk_para("Dhruva Tara Award", style_an), mk_para("The Shining Stars (Rank 4 & 5). Awarded for maintaining a high position consistently like the eternal Pole Star.", style_ad), mk_para("<br/>".join(rank45['Name'].tolist()), style_aw)])
                 
                 rank6_10 = out_df[out_df['Rank'].isin([6,7,8,9,10])]
-                if not rank6_10.empty: awards_list.append([mk_para("Karna Veerta Award", style_an), mk_para("The Brave Warriors (Rank 6 to 10).", style_ad), mk_para("<br/>".join(rank6_10['Name'].tolist()), style_aw)])
+                if not rank6_10.empty: awards_list.append([mk_para("Karna Veerta Award", style_an), mk_para("The Brave Warriors (Rank 6 to 10). Talented fighters who fought hard and missed the top 5 by a narrow margin.", style_ad), mk_para("<br/>".join(rank6_10['Name'].tolist()), style_aw)])
                 
                 angad_c = out_df[(out_df['Absent'] == 0) & (out_df['Percentage'] >= thresh_yellow) & (out_df['Rank'] > 10)].sort_values(by='Obtained', ascending=False).head(5)
-                if not angad_c.empty: awards_list.append([mk_para("Angad Stambh Award", style_an), mk_para("The Unmovable Pillar. 100% Attendance & Passed.", style_ad), mk_para("<br/>".join(angad_c['Name'].tolist()), style_aw)])
+                if not angad_c.empty: awards_list.append([mk_para("Angad Stambh Award", style_an), mk_para("The Unmovable Pillar. Awarded for 100% Attendance & Passing All Tests. They stood firm in every exam!", style_ad), mk_para("<br/>".join(angad_c['Name'].tolist()), style_aw)])
                 
                 bhagirath_c = out_df[(out_df['Percentage'] >= thresh_yellow) & (out_df['Percentage'] < thresh_green) & (out_df['Present'] / out_df['Total Tests'] >= 0.8) & (out_df['Rank'] > 10) & (out_df['Absent'] > 0)].sort_values(by='Obtained', ascending=False).head(5)
-                if not bhagirath_c.empty: awards_list.append([mk_para("Bhagirath Prayas Award", style_an), mk_para("The Relentless Effort. High Attendance & Hard Work.", style_ad), mk_para("<br/>".join(bhagirath_c['Name'].tolist()), style_aw)])
+                if not bhagirath_c.empty: awards_list.append([mk_para("Bhagirath Prayas Award", style_an), mk_para("The Relentless Effort. Awarded for High Attendance (>80%) & Hard Work. Students striving to turn the tide and improve.", style_ad), mk_para("<br/>".join(bhagirath_c['Name'].tolist()), style_aw)])
 
                 aw_table = Table([["AWARD CATEGORY", "DESCRIPTION", "WINNER(S)"]] + awards_list, colWidths=[0.35*TABLE_WIDTH, 0.35*TABLE_WIDTH, 0.30*TABLE_WIDTH])
                 aw_style = TableStyle([('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")), ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER), ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONT', (0,0), (-1,0), 'Helvetica-Bold'), ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6), ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8)])
@@ -481,9 +469,9 @@ if uploaded_files:
                 if not final_pdf.endswith('.pdf'): final_pdf += ".pdf"
                 st.download_button(label=f"📥 Download {final_pdf}", data=buffer, file_name=final_pdf, mime="application/pdf")
 
-        # --- BUTTON 2: GENERATE CERTIFICATES PDF ---
+        # --- BUTTON 2: CERTIFICATES ---
         if col_btn2.button("🏆 Generate Certificates PDF", type="secondary"):
             with st.spinner("Generating Certificates..."):
-                cert_buffer = generate_certificates_pdf(out_df, thresh_yellow, thresh_green)
+                cert_buffer = generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_header_title)
                 cert_name = f"Certificates_{output_filename.strip()}.pdf"
                 st.download_button(label=f"📥 Download Certificates", data=cert_buffer, file_name=cert_name, mime="application/pdf")
