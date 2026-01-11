@@ -6,13 +6,14 @@ import io
 import datetime
 import requests
 from PIL import Image
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
-from reportlab.lib.units import mm
+from reportlab.lib.units import mm, inch
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.utils import ImageReader
+from reportlab.lib.enums import TA_CENTER
 
 # ---------------- CONFIG ----------------
 TG_LINK = "https://t.me/MurlidharAcademy"
@@ -34,6 +35,8 @@ COLOR_BLUE_HEADER = colors.HexColor("#0f5f9a")
 COLOR_GREEN = colors.HexColor("#C8E6C9")
 COLOR_YELLOW = colors.HexColor("#FFF9C4")
 COLOR_RED = colors.HexColor("#FFCDD2")
+COLOR_SAFFRON = colors.HexColor("#FF9933")
+COLOR_GOLD = colors.HexColor("#B8860B") # Dark Gold
 
 # ✅ SUMMARY COLORS
 SUMMARY_HEADER_COLORS = {
@@ -128,17 +131,142 @@ def get_smart_row_color(pct, is_even_row, t_green, t_yellow):
         return colors.HexColor("#FFFDE7") if is_even_row else colors.HexColor("#FFF9C4")
     return colors.HexColor("#FFEBEE") if is_even_row else colors.HexColor("#FFCDD2")
 
+# ---------------- CERTIFICATE GENERATOR FUNCTION ----------------
+def generate_certificates_pdf(out_df, thresh_yellow, thresh_green):
+    buffer = io.BytesIO()
+    # Landscape A4 for Certificates
+    c = canvas.Canvas(buffer, pagesize=landscape(A4))
+    width, height = landscape(A4)
+    
+    # Define Awards Logic
+    awards_to_give = [] # List of tuples: (Student Name, Award Title, Description, Color)
+
+    # 1. Vikramaditya (Rank 1)
+    rank1 = out_df[out_df['Rank'] == 1]
+    for _, r in rank1.iterrows():
+        awards_to_give.append((r['Name'], "THE VIKRAMADITYA EXCELLENCE AWARD", 
+                               "For securing the 1st Rank with the highest score. You are the King of the Batch!", COLOR_GOLD))
+
+    # 2. Chanakya (Rank 2)
+    rank2 = out_df[out_df['Rank'] == 2]
+    for _, r in rank2.iterrows():
+        awards_to_give.append((r['Name'], "THE CHANAKYA NITI AWARD", 
+                               "For outstanding intelligence and strategy in securing the 2nd Rank.", COLOR_BLUE_HEADER))
+
+    # 3. Arjuna (Rank 3)
+    rank3 = out_df[out_df['Rank'] == 3]
+    for _, r in rank3.iterrows():
+        awards_to_give.append((r['Name'], "THE ARJUNA FOCUS AWARD", 
+                               "For unwavering focus, precision, and securing the 3rd Rank.", COLOR_SAFFRON))
+
+    # 4. Dhruva (Rank 4 & 5)
+    rank45 = out_df[out_df['Rank'].isin([4, 5])]
+    for _, r in rank45.iterrows():
+        awards_to_give.append((r['Name'], "THE DHRUVA TARA AWARD", 
+                               "For shining bright and maintaining a consistent high position (Rank 4-5).", COLOR_BLUE_HEADER))
+
+    # 5. Karna (Rank 6-10)
+    rank6_10 = out_df[out_df['Rank'].isin([6,7,8,9,10])]
+    for _, r in rank6_10.iterrows():
+        awards_to_give.append((r['Name'], "THE KARNA VEERTA AWARD", 
+                               "The Unsung Warrior. For fighting hard and securing a top 10 position.", COLOR_SAFFRON))
+
+    # 6. Angad Stambh (100% Present + Passed + Rank > 10)
+    angad_candidates = out_df[(out_df['Absent'] == 0) & (out_df['Percentage'] >= thresh_yellow) & (out_df['Rank'] > 10)]
+    for _, r in angad_candidates.iterrows():
+        awards_to_give.append((r['Name'], "THE ANGAD STAMBH AWARD", 
+                               "For Unmovable Consistency. Awarded for 100% Attendance & Passing all tests.", COLOR_BLUE_HEADER))
+
+    # 7. Bhagirath Prayas (Hard Work)
+    bhagirath_candidates = out_df[
+        (out_df['Percentage'] >= thresh_yellow) & (out_df['Percentage'] < thresh_green) &
+        (out_df['Present'] / out_df['Total Tests'] >= 0.8) & (out_df['Rank'] > 10) & (out_df['Absent'] > 0)
+    ]
+    for _, r in bhagirath_candidates.iterrows():
+        awards_to_give.append((r['Name'], "THE BHAGIRATH PRAYAS AWARD", 
+                               "For Relentless Effort. Awarded for high attendance and continuous improvement.", COLOR_SAFFRON))
+
+    # DRAWING CERTIFICATES
+    for student_name, title, desc, theme_color in awards_to_give:
+        # Background Border
+        c.setStrokeColor(theme_color)
+        c.setLineWidth(5)
+        c.rect(15*mm, 15*mm, width-30*mm, height-30*mm)
+        
+        # Inner thin border
+        c.setLineWidth(1)
+        c.rect(18*mm, 18*mm, width-36*mm, height-36*mm)
+
+        # Academy Name
+        c.setFont("Helvetica-Bold", 30)
+        c.setFillColor(COLOR_BLUE_HEADER)
+        c.drawCentredString(width/2, height - 45*mm, "MURLIDHAR ACADEMY")
+        
+        c.setFont("Helvetica", 12)
+        c.setFillColor(colors.black)
+        c.drawCentredString(width/2, height - 52*mm, "JUNAGADH")
+
+        # "Certificate of Appreciation"
+        c.setFont("Helvetica-Oblique", 18)
+        c.setFillColor(colors.black)
+        c.drawCentredString(width/2, height - 70*mm, "Certificate of Achievement")
+
+        # "This is proudly presented to"
+        c.setFont("Helvetica", 12)
+        c.setFillColor(colors.gray)
+        c.drawCentredString(width/2, height - 80*mm, "This is proudly presented to")
+
+        # STUDENT NAME
+        c.setFont("Helvetica-Bold", 32)
+        c.setFillColor(theme_color)
+        c.drawCentredString(width/2, height - 95*mm, student_name.upper())
+
+        # Line under name
+        c.setStrokeColor(colors.black)
+        c.setLineWidth(0.5)
+        c.line(width/2 - 60*mm, height - 98*mm, width/2 + 60*mm, height - 98*mm)
+
+        # AWARD TITLE
+        c.setFont("Helvetica-Bold", 20)
+        c.setFillColor(colors.black)
+        c.drawCentredString(width/2, height - 115*mm, title)
+
+        # Description (Using Paragraph for wrapping)
+        style = ParagraphStyle('Desc', parent=getSampleStyleSheet()['Normal'], fontName='Helvetica', fontSize=14, leading=18, alignment=TA_CENTER, textColor=colors.darkgray)
+        p = Paragraph(desc, style)
+        w, h = p.wrap(width - 80*mm, 50*mm)
+        p.drawOn(c, (width - w)/2, height - 135*mm)
+
+        # Date and Signature
+        today_str = datetime.date.today().strftime('%d-%m-%Y')
+        
+        c.setFont("Helvetica-Bold", 12)
+        c.setFillColor(colors.black)
+        
+        # Date Left
+        c.drawString(30*mm, 35*mm, f"Date: {today_str}")
+        
+        # Signature Right
+        c.drawRightString(width - 30*mm, 35*mm, "Director Signature")
+        c.line(width - 70*mm, 37*mm, width - 30*mm, 37*mm)
+
+        c.showPage()
+
+    c.save()
+    buffer.seek(0)
+    return buffer
+
 # ---------------- STREAMLIT UI ----------------
-st.set_page_config(page_title="Consolidated Monthly Report", page_icon="📅", layout="centered")
-st.title("📅 Consolidated Monthly Report Generator")
+st.set_page_config(page_title="Murlidhar Academy Report System", page_icon="🎓", layout="centered")
+st.title("🎓 Murlidhar Academy Report System")
 
 if 'default_bg_data' not in st.session_state:
     st.session_state['default_bg_data'] = download_default_bg(DEFAULT_DRIVE_ID)
 
 with st.sidebar:
-    st.header("🎨 Color Grading Rules")
-    thresh_green = st.number_input("Green Zone (Excellent >= %)", min_value=0, max_value=100, value=70)
-    thresh_yellow = st.number_input("Yellow Zone (Average >= %)", min_value=0, max_value=100, value=40)
+    st.header("🎨 Settings")
+    thresh_green = st.number_input("Green Zone (>= %)", min_value=0, max_value=100, value=70)
+    thresh_yellow = st.number_input("Yellow Zone (>= %)", min_value=0, max_value=100, value=40)
     st.markdown("---")
     if st.session_state['default_bg_data']:
         st.success("✅ Background loaded from Drive")
@@ -146,382 +274,216 @@ with st.sidebar:
         st.warning("⚠️ Background loading failed")
 
 col1, col2 = st.columns(2)
-report_header_title = col1.text_input("Main Report Header (PDF Top)", f"MONTHLY RESULT REPORT - {datetime.date.today().strftime('%B %Y')}")
+report_header_title = col1.text_input("Main Report Header", f"MONTHLY RESULT REPORT - {datetime.date.today().strftime('%B %Y')}")
 output_filename = col2.text_input("Output Filename", f"Monthly_Report_{datetime.date.today().strftime('%b_%Y')}")
-
 summary_page_title = st.text_input("Summary Page Title", "SUMMARY & ANALYSIS OF THE MONTH")
 
-uploaded_files = st.file_uploader("Upload CSV Files (Select Multiple)", type=['csv'], accept_multiple_files=True)
+uploaded_files = st.file_uploader("Upload CSV Files", type=['csv'], accept_multiple_files=True)
 
 if uploaded_files:
-    if st.button("Generate Consolidated PDF 🚀", type="primary"):
-        with st.spinner("Processing files and compiling data..."):
+    # 1. PROCESS DATA FIRST
+    per_file_data = []
+    for uploaded_file in uploaded_files:
+        try:
+            uploaded_file.seek(0) # Reset pointer
+            df = pd.read_csv(uploaded_file)
+            file_max = find_possible_pts(df)
+            names = find_name_series(df)
+            obtained = extract_obtained_series(df)
             
-            per_file_data = []
-            for uploaded_file in uploaded_files:
-                try:
-                    df = pd.read_csv(uploaded_file)
-                    file_max = find_possible_pts(df)
-                    names = find_name_series(df)
-                    obtained = extract_obtained_series(df)
-                    
-                    if file_max is None:
-                        file_max = obtained.max() if not obtained.empty else DEFAULT_TEST_MAX_PER_FILE
-                        if file_max == 0: file_max = DEFAULT_TEST_MAX_PER_FILE
-                    
-                    name_map = {}
-                    present_set = set()
-                    
-                    for n, score in zip(names, obtained):
-                        norm = normalize_name(n)
-                        if norm:
-                            present_set.add(norm)
-                            name_map[norm] = float(score)
-                            
-                    per_file_data.append({
-                        "file_max": float(file_max),
-                        "data": name_map,
-                        "present": present_set
-                    })
-                except Exception as e:
-                    st.error(f"Error processing {uploaded_file.name}: {e}")
-
-            if not per_file_data:
-                st.stop()
-
-            all_students = set()
-            total_max_marks = sum(f['file_max'] for f in per_file_data)
-            total_tests_count = len(per_file_data)
+            if file_max is None:
+                file_max = obtained.max() if not obtained.empty else DEFAULT_TEST_MAX_PER_FILE
+                if file_max == 0: file_max = DEFAULT_TEST_MAX_PER_FILE
             
+            name_map = {}
+            present_set = set()
+            for n, score in zip(names, obtained):
+                norm = normalize_name(n)
+                if norm:
+                    present_set.add(norm)
+                    name_map[norm] = float(score)
+            per_file_data.append({"file_max": float(file_max), "data": name_map, "present": present_set})
+        except Exception as e:
+            st.error(f"Error processing {uploaded_file.name}: {e}")
+
+    if per_file_data:
+        all_students = set()
+        total_max_marks = sum(f['file_max'] for f in per_file_data)
+        total_tests_count = len(per_file_data)
+        for f in per_file_data: all_students.update(f['present'])
+        
+        final_records = []
+        for student_norm in all_students:
+            total_obtained = 0.0
+            tests_present = 0
+            display_name = student_norm.title()
             for f in per_file_data:
-                all_students.update(f['present'])
-            
-            final_records = []
-            for student_norm in all_students:
-                total_obtained = 0.0
-                tests_present = 0
-                display_name = student_norm.title()
-                
-                for f in per_file_data:
-                    if student_norm in f['present']:
-                        tests_present += 1
-                        total_obtained += f['data'].get(student_norm, 0.0)
-                
-                pct = (total_obtained / total_max_marks * 100) if total_max_marks > 0 else 0
-                
-                final_records.append({
-                    "Name": display_name,
-                    "Total Tests": total_tests_count,
-                    "Present": tests_present,
-                    "Absent": total_tests_count - tests_present,
-                    "Total Marks": int(total_max_marks),
-                    "Obtained": round(total_obtained, 2),
-                    "Percentage": round(pct, 1)
-                })
-            
-            out_df = pd.DataFrame(final_records)
-            out_df['Rank'] = out_df['Obtained'].rank(method='dense', ascending=False).astype(int)
-            out_df = out_df.sort_values(by=['Rank', 'Name']).reset_index(drop=True)
-            
-            # 3. PDF GENERATION
-            buffer = io.BytesIO()
-            c = canvas.Canvas(buffer, pagesize=A4)
-            PAGE_W, PAGE_H = A4
-            
-            TEMPLATE_IMG = None
-            if st.session_state['default_bg_data']:
-                try:
+                if student_norm in f['present']:
+                    tests_present += 1
+                    total_obtained += f['data'].get(student_norm, 0.0)
+            pct = (total_obtained / total_max_marks * 100) if total_max_marks > 0 else 0
+            final_records.append({
+                "Name": display_name, "Total Tests": total_tests_count, "Present": tests_present,
+                "Absent": total_tests_count - tests_present, "Total Marks": int(total_max_marks),
+                "Obtained": round(total_obtained, 2), "Percentage": round(pct, 1)
+            })
+        
+        out_df = pd.DataFrame(final_records)
+        out_df['Rank'] = out_df['Obtained'].rank(method='dense', ascending=False).astype(int)
+        out_df = out_df.sort_values(by=['Rank', 'Name']).reset_index(drop=True)
+
+        st.success("✅ Data Processed Successfully! Choose an action below:")
+
+        col_btn1, col_btn2 = st.columns(2)
+
+        # --- BUTTON 1: GENERATE REPORT PDF ---
+        if col_btn1.button("📄 Generate Full Report PDF", type="primary"):
+            with st.spinner("Generating Report..."):
+                # ... (PDF Generation Logic from previous response - condensed for brevity) ...
+                buffer = io.BytesIO()
+                c = canvas.Canvas(buffer, pagesize=A4)
+                PAGE_W, PAGE_H = A4
+                TEMPLATE_IMG = None
+                if st.session_state['default_bg_data']:
                     st.session_state['default_bg_data'].seek(0)
                     TEMPLATE_IMG = ImageReader(Image.open(st.session_state['default_bg_data']))
-                except: pass
 
-            def draw_bg_and_header(c, title_text):
-                if TEMPLATE_IMG:
-                    c.drawImage(TEMPLATE_IMG, 0, 0, width=PAGE_W, height=PAGE_H)
+                def draw_bg_and_header(c, title_text):
+                    if TEMPLATE_IMG: c.drawImage(TEMPLATE_IMG, 0, 0, width=PAGE_W, height=PAGE_H)
+                    TITLE_Y = PAGE_H - (TITLE_Y_mm_from_top * mm)
+                    c.setFont("Helvetica-Bold", 15)
+                    c.setFillColor(colors.white if TEMPLATE_IMG else COLOR_BLUE_HEADER)
+                    c.drawCentredString(PAGE_W/2, TITLE_Y, title_text)
+
+                def add_social_links(c):
+                    if TEMPLATE_IMG:
+                        c.linkURL(TG_LINK, (20*mm, 24*mm, 106*mm, 45*mm))
+                        c.linkURL(IG_LINK, (110*mm, 24*mm, 190*mm, 45*mm))
+
+                table_header = ["No", "Rank", "Name", "Tests", "Pres", "Abs", "Max", "Obt", "%"]
+                TABLE_WIDTH = PAGE_W - (LEFT_MARGIN_mm * mm) - (RIGHT_MARGIN_mm * mm)
+                col_widths = [0.06*TABLE_WIDTH, 0.07*TABLE_WIDTH, 0.35*TABLE_WIDTH, 0.08*TABLE_WIDTH, 0.07*TABLE_WIDTH, 0.07*TABLE_WIDTH, 0.10*TABLE_WIDTH, 0.10*TABLE_WIDTH, 0.10*TABLE_WIDTH]
                 
-                TITLE_Y = PAGE_H - (TITLE_Y_mm_from_top * mm)
-                c.setFont("Helvetica-Bold", 15)
-                c.setFillColor(colors.white if TEMPLATE_IMG else COLOR_BLUE_HEADER)
-                c.drawCentredString(PAGE_W/2, TITLE_Y, title_text)
+                data_rows = []
+                for i, r in out_df.iterrows():
+                    data_rows.append([str(i+1), str(r['Rank']), str(r['Name']), str(r['Total Tests']), str(r['Present']), str(r['Absent']), str(r['Total Marks']), str(r['Obtained']), f"{r['Percentage']}%"])
 
-            def add_social_links(c):
-                if TEMPLATE_IMG:
-                    c.linkURL(TG_LINK, (20*mm, 24*mm, 106*mm, 45*mm))
-                    c.linkURL(IG_LINK, (110*mm, 24*mm, 190*mm, 45*mm))
+                total_pages_main = math.ceil(len(data_rows) / ROWS_PER_PAGE)
+                total_pages_approx = total_pages_main + 2
+                TABLE_TOP_Y = PAGE_H - (TITLE_Y_mm_from_top * mm) - (TABLE_SPACE_AFTER_TITLE_mm * mm)
 
-            table_header = ["No", "Rank", "Name", "Tests", "Pres", "Abs", "Max", "Obt", "%"]
-            TABLE_WIDTH = PAGE_W - (LEFT_MARGIN_mm * mm) - (RIGHT_MARGIN_mm * mm)
-            col_widths = [
-                0.06 * TABLE_WIDTH, 0.07 * TABLE_WIDTH, 0.35 * TABLE_WIDTH,
-                0.08 * TABLE_WIDTH, 0.07 * TABLE_WIDTH, 0.07 * TABLE_WIDTH,
-                0.10 * TABLE_WIDTH, 0.10 * TABLE_WIDTH, 0.10 * TABLE_WIDTH
-            ]
+                for p in range(total_pages_main):
+                    start = p * ROWS_PER_PAGE
+                    end = start + ROWS_PER_PAGE
+                    page_data = [table_header] + data_rows[start:end]
+                    draw_bg_and_header(c, report_header_title)
+                    t = Table(page_data, colWidths=col_widths, repeatRows=1)
+                    style = TableStyle([
+                        ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")),
+                        ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER),
+                        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                        ('FONT', (0,0), (-1,0), 'Helvetica-Bold'),
+                        ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('ALIGN', (2,1), (2,-1), 'LEFT'),
+                        ('LEFTPADDING', (2,1), (2,-1), 6), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('FONTSIZE', (0,0), (-1,-1), 9)
+                    ])
+                    for i in range(1, len(page_data)):
+                        try: pct = float(page_data[i][-1].replace('%',''))
+                        except: pct = 0
+                        bg = get_smart_row_color(pct, i%2==0, thresh_green, thresh_yellow)
+                        style.add('BACKGROUND', (0,i), (-1,i), bg)
+                        style.add('TEXTCOLOR', (0,i), (-1,i), colors.black)
+                    t.setStyle(style)
+                    w, h = t.wrapOn(c, TABLE_WIDTH, PAGE_H)
+                    t.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
+                    c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.white)
+                    c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {p+1}/{total_pages_approx}")
+                    add_social_links(c); c.showPage()
 
-            data_rows = []
-            for i, r in out_df.iterrows():
-                row = [
-                    str(i + 1), str(r['Rank']), str(r['Name']),
-                    str(r['Total Tests']), str(r['Present']), str(r['Absent']),
-                    str(r['Total Marks']), str(r['Obtained']), f"{r['Percentage']}%"
+                # Summary Page
+                draw_bg_and_header(c, summary_page_title)
+                avg_obt = out_df['Obtained'].mean()
+                pass_count = len(out_df[out_df['Percentage'] >= thresh_yellow])
+                summary_data = [
+                    ["METRIC", "VALUE", "REMARK"],
+                    ["Total Candidates", str(len(out_df)), "Unique students appearing"],
+                    ["Total Tests", str(total_tests_count), "Number of CSVs processed"],
+                    ["Batch Average", f"{avg_obt:.2f}", "Overall class performance"],
+                    ["Highest Score", f"{out_df['Obtained'].max()}", "Top ranker score"],
+                    ["Lowest Score", f"{out_df['Obtained'].min()}", "Needs attention"],
+                    ["Pass Candidates", f"{pass_count}", f">={thresh_yellow}% Score"],
+                    ["TOP 5 RANKERS", "", ""],
                 ]
-                data_rows.append(row)
-
-            total_pages_main = math.ceil(len(data_rows) / ROWS_PER_PAGE)
-            total_pages_approx = total_pages_main + 2 # Approx
-            
-            TABLE_TOP_Y = PAGE_H - (TITLE_Y_mm_from_top * mm) - (TABLE_SPACE_AFTER_TITLE_mm * mm)
-
-            for p in range(total_pages_main):
-                start = p * ROWS_PER_PAGE
-                end = start + ROWS_PER_PAGE
-                page_data = [table_header] + data_rows[start:end]
+                for i, r in out_df.head(5).iterrows(): summary_data.append([f"Rank {r['Rank']}", r['Name'], f"{r['Obtained']}/{total_max_marks} ({r['Percentage']}%)"])
+                summary_data.append(["BOTTOM 3 (NEEDS IMPROVEMENT)", "", ""])
+                for i, r in out_df.tail(3).sort_values(by='Obtained').iterrows(): summary_data.append([f"Rank {r['Rank']}", r['Name'], f"{r['Obtained']}/{total_max_marks} ({r['Percentage']}%)"])
                 
-                draw_bg_and_header(c, report_header_title)
-                
-                t = Table(page_data, colWidths=col_widths, repeatRows=1)
-                
-                style = TableStyle([
+                st_table = Table(summary_data, colWidths=[0.25*TABLE_WIDTH, 0.25*TABLE_WIDTH, 0.50*TABLE_WIDTH])
+                sum_style = TableStyle([
                     ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")),
                     ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER),
                     ('TEXTCOLOR', (0,0), (-1,0), colors.white),
                     ('FONT', (0,0), (-1,0), 'Helvetica-Bold'),
-                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                    ('ALIGN', (2,1), (2,-1), 'LEFT'),
-                    ('LEFTPADDING', (2,1), (2,-1), 6),
-                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                    ('FONTSIZE', (0,0), (-1,-1), 9),
+                    ('ALIGN', (0,0), (-1,-1), 'LEFT'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')
                 ])
+                for i, row in enumerate(summary_data):
+                    if i==0: continue
+                    sum_style.add('BACKGROUND', (0,i), (-1,i), colors.Color(0.96,0.97,1.0) if i%2==0 else colors.white)
+                    if row[0] == "TOP 5 RANKERS": sum_style.add('BACKGROUND', (0,i), (-1,i), SUMMARY_HEADER_COLORS["TOP 5 RANKERS"]); sum_style.add('TEXTCOLOR', (0,i), (-1,i), colors.white)
+                    elif row[0] == "BOTTOM 3 (NEEDS IMPROVEMENT)": sum_style.add('BACKGROUND', (0,i), (-1,i), SUMMARY_HEADER_COLORS["BOTTOM 3 (NEEDS IMPROVEMENT)"]); sum_style.add('TEXTCOLOR', (0,i), (-1,i), colors.white)
+                st_table.setStyle(sum_style); w, h = st_table.wrapOn(c, TABLE_WIDTH, PAGE_H)
+                st_table.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
+                c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.white)
+                c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages_approx-1}/{total_pages_approx}")
+                add_social_links(c); c.showPage()
+
+                # Hall of Fame
+                draw_bg_and_header(c, "HALL OF FAME")
+                styles = getSampleStyleSheet()
+                style_an = ParagraphStyle('AN', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.black, alignment=1)
+                style_ad = ParagraphStyle('AD', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=colors.black, alignment=1)
+                style_aw = ParagraphStyle('AW', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=COLOR_BLUE_HEADER, alignment=1, leading=12)
                 
-                for i in range(1, len(page_data)):
-                    try: pct_val = float(page_data[i][-1].replace('%',''))
-                    except: pct_val = 0
-                    bg_color = get_smart_row_color(pct_val, i%2==0, thresh_green, thresh_yellow)
-                    style.add('BACKGROUND', (0,i), (-1,i), bg_color)
-                    style.add('TEXTCOLOR', (0,i), (-1,i), colors.black)
+                awards_list = []
+                def mk_para(text, style): return Paragraph(text, style)
                 
-                t.setStyle(style)
-                w, h = t.wrapOn(c, TABLE_WIDTH, PAGE_H)
-                t.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
+                rank1 = out_df[out_df['Rank'] == 1]
+                if not rank1.empty: awards_list.append([mk_para("Vikramaditya Excellence Award", style_an), mk_para("The Batch Topper (Rank 1). Awarded for ruling the result sheet.", style_ad), mk_para("<br/>".join(rank1['Name'].tolist()), style_aw)])
                 
-                c.setFont("Helvetica-Bold", 8)
-                c.setFillColor(colors.white)
-                c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {p+1}/{total_pages_approx}")
-                add_social_links(c)
-                c.showPage()
-
-            # --- SUMMARY PAGE ---
-            draw_bg_and_header(c, summary_page_title)
-            
-            avg_obt = out_df['Obtained'].mean()
-            pass_count = len(out_df[out_df['Percentage'] >= thresh_yellow])
-            
-            summary_data = [
-                ["METRIC", "VALUE", "REMARK"],
-                ["Total Candidates", str(len(out_df)), "Unique students appearing"],
-                ["Total Tests", str(total_tests_count), "Number of CSVs processed"],
-                ["Total Marks", str(total_max_marks), "Sum of all test max marks"],
-                ["Batch Average", f"{avg_obt:.2f}", "Overall class performance"],
-                ["Highest Score", f"{out_df['Obtained'].max()}", "Top ranker score"],
-                ["Lowest Score", f"{out_df['Obtained'].min()}", "Needs attention"],
-                ["Pass Candidates", f"{pass_count}", f">={thresh_yellow}% Score"],
-            ]
-            
-            summary_data.append(["TOP 5 RANKERS", "", ""])
-            top_5 = out_df.head(5)
-            for i, r in top_5.iterrows():
-                summary_data.append([f"Rank {r['Rank']}", r['Name'], f"{r['Obtained']}/{total_max_marks} ({r['Percentage']}%)"])
-
-            summary_data.append(["BOTTOM 3 (NEEDS IMPROVEMENT)", "", ""])
-            bot_3 = out_df.tail(3).sort_values(by='Obtained')
-            for i, r in bot_3.iterrows():
-                summary_data.append([f"Rank {r['Rank']}", r['Name'], f"{r['Obtained']}/{total_max_marks} ({r['Percentage']}%)"])
-
-            st_table = Table(summary_data, colWidths=[0.25*TABLE_WIDTH, 0.25*TABLE_WIDTH, 0.50*TABLE_WIDTH])
-            
-            sum_style = TableStyle([
-                ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")),
-                ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER),
-                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                ('FONT', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-                ('LEFTPADDING', (0,0), (-1,-1), 6),
-                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ])
-            
-            for i, row in enumerate(summary_data):
-                if i==0: continue
+                rank2 = out_df[out_df['Rank'] == 2]
+                if not rank2.empty: awards_list.append([mk_para("Chanakya Niti Award", style_an), mk_para("The Intellectual Strategist (Rank 2).", style_ad), mk_para("<br/>".join(rank2['Name'].tolist()), style_aw)])
                 
-                base_bg = colors.Color(0.96,0.97,1.0) if i % 2 == 0 else colors.white
-                sum_style.add('BACKGROUND', (0,i), (-1,i), base_bg)
+                rank3 = out_df[out_df['Rank'] == 3]
+                if not rank3.empty: awards_list.append([mk_para("Arjuna Focus Award", style_an), mk_para("The Focused Archer (Rank 3).", style_ad), mk_para("<br/>".join(rank3['Name'].tolist()), style_aw)])
                 
-                first_col = str(row[0])
-                if first_col in SUMMARY_HEADER_COLORS:
-                    sum_style.add('BACKGROUND', (0,i), (-1,i), SUMMARY_HEADER_COLORS[first_col])
-                    sum_style.add('TEXTCOLOR', (0,i), (-1,i), colors.white)
-                    sum_style.add('FONT', (0,i), (-1,i), 'Helvetica-Bold')
-                else:
-                    val = str(row[1])
-                    try:
-                        cell_color = None
-                        pct = 0
-                        if '(' in val and '%' in val: 
-                            pct = float(val.split('(')[1].replace('%)',''))
-                        elif '/' in val: 
-                            num = float(val.split('/')[0])
-                            pct = (num / total_max_marks) * 100 if total_max_marks > 0 else 0
-                        
-                        if pct > 0:
-                            if pct >= thresh_green: cell_color = colors.HexColor("#C8E6C9")
-                            elif pct >= thresh_yellow: cell_color = colors.HexColor("#FFF9C4")
-                            else: cell_color = colors.HexColor("#FFCDD2")
-                        
-                        if cell_color:
-                            sum_style.add('BACKGROUND', (1,i), (1,i), cell_color)
-                    except: pass
-            
-            st_table.setStyle(sum_style)
-            w, h = st_table.wrapOn(c, TABLE_WIDTH, PAGE_H)
-            st_table.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
-            
-            c.setFont("Helvetica-Bold", 8)
-            c.setFillColor(colors.white)
-            c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages_approx-1}/{total_pages_approx}")
-            add_social_links(c)
-            c.showPage()
+                rank45 = out_df[out_df['Rank'].isin([4, 5])]
+                if not rank45.empty: awards_list.append([mk_para("Dhruva Tara Award", style_an), mk_para("The Shining Stars (Rank 4 & 5).", style_ad), mk_para("<br/>".join(rank45['Name'].tolist()), style_aw)])
+                
+                rank6_10 = out_df[out_df['Rank'].isin([6,7,8,9,10])]
+                if not rank6_10.empty: awards_list.append([mk_para("Karna Veerta Award", style_an), mk_para("The Brave Warriors (Rank 6 to 10).", style_ad), mk_para("<br/>".join(rank6_10['Name'].tolist()), style_aw)])
+                
+                angad_c = out_df[(out_df['Absent'] == 0) & (out_df['Percentage'] >= thresh_yellow) & (out_df['Rank'] > 10)].sort_values(by='Obtained', ascending=False).head(5)
+                if not angad_c.empty: awards_list.append([mk_para("Angad Stambh Award", style_an), mk_para("The Unmovable Pillar. 100% Attendance & Passed.", style_ad), mk_para("<br/>".join(angad_c['Name'].tolist()), style_aw)])
+                
+                bhagirath_c = out_df[(out_df['Percentage'] >= thresh_yellow) & (out_df['Percentage'] < thresh_green) & (out_df['Present'] / out_df['Total Tests'] >= 0.8) & (out_df['Rank'] > 10) & (out_df['Absent'] > 0)].sort_values(by='Obtained', ascending=False).head(5)
+                if not bhagirath_c.empty: awards_list.append([mk_para("Bhagirath Prayas Award", style_an), mk_para("The Relentless Effort. High Attendance & Hard Work.", style_ad), mk_para("<br/>".join(bhagirath_c['Name'].tolist()), style_aw)])
 
-            # --- HALL OF FAME PAGE ---
-            draw_bg_and_header(c, "HALL OF FAME")
+                aw_table = Table([["AWARD CATEGORY", "DESCRIPTION", "WINNER(S)"]] + awards_list, colWidths=[0.35*TABLE_WIDTH, 0.35*TABLE_WIDTH, 0.30*TABLE_WIDTH])
+                aw_style = TableStyle([('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")), ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER), ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONT', (0,0), (-1,0), 'Helvetica-Bold'), ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6), ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8)])
+                for i in range(1, len(awards_list)+1): aw_style.add('BACKGROUND', (0,i), (-1,i), colors.Color(0.96,0.97,1.0) if i%2==0 else colors.white)
+                aw_table.setStyle(aw_style); w, h = aw_table.wrapOn(c, TABLE_WIDTH, PAGE_H)
+                aw_table.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
+                c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.white)
+                c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages_approx}/{total_pages_approx}")
+                add_social_links(c); c.showPage()
+                c.save(); buffer.seek(0)
+                
+                final_pdf = output_filename.strip()
+                if not final_pdf.endswith('.pdf'): final_pdf += ".pdf"
+                st.download_button(label=f"📥 Download {final_pdf}", data=buffer, file_name=final_pdf, mime="application/pdf")
 
-            styles = getSampleStyleSheet()
-            style_award_name = ParagraphStyle('AN', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.black, alignment=1)
-            style_desc = ParagraphStyle('AD', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=colors.black, alignment=1)
-            style_winner = ParagraphStyle('AW', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=COLOR_BLUE_HEADER, alignment=1, leading=12)
-
-            awards_list = []
-            
-            def mk_para(text, style): return Paragraph(text, style)
-
-            # 1. Vikramaditya (Rank 1)
-            rank1 = out_df[out_df['Rank'] == 1]
-            if not rank1.empty:
-                names_str = "<br/>".join(rank1['Name'].tolist())
-                awards_list.append([
-                    mk_para("Vikramaditya Excellence Award", style_award_name),
-                    mk_para("The Batch Topper (Rank 1). Awarded for ruling the result sheet with the highest score and supreme excellence.", style_desc),
-                    mk_para(names_str, style_winner)
-                ])
-            
-            # 2. Chanakya (Rank 2)
-            rank2 = out_df[out_df['Rank'] == 2]
-            if not rank2.empty:
-                names_str = "<br/>".join(rank2['Name'].tolist())
-                awards_list.append([
-                    mk_para("Chanakya Niti Award", style_award_name),
-                    mk_para("The Intellectual Strategist (Rank 2). Awarded for sharp intelligence and securing the second-highest position.", style_desc),
-                    mk_para(names_str, style_winner)
-                ])
-            
-            # 3. Arjuna (Rank 3)
-            rank3 = out_df[out_df['Rank'] == 3]
-            if not rank3.empty:
-                names_str = "<br/>".join(rank3['Name'].tolist())
-                awards_list.append([
-                    mk_para("Arjuna Focus Award", style_award_name),
-                    mk_para("The Focused Archer (Rank 3). Awarded for unwavering focus, precision, and hitting the target score.", style_desc),
-                    mk_para(names_str, style_winner)
-                ])
-
-            # 4. Dhruva (Rank 4 & 5)
-            rank45 = out_df[out_df['Rank'].isin([4, 5])]
-            if not rank45.empty:
-                 names_str = "<br/>".join(rank45['Name'].tolist())
-                 awards_list.append([
-                    mk_para("Dhruva Tara Award", style_award_name),
-                    mk_para("The Shining Stars (Rank 4 & 5). Awarded for maintaining a high position consistently like the eternal Pole Star.", style_desc),
-                    mk_para(names_str, style_winner)
-                ])
-
-            # 5. Karna (Rank 6-10)
-            rank6_10 = out_df[out_df['Rank'].isin([6,7,8,9,10])]
-            if not rank6_10.empty:
-                 names_str = "<br/>".join(rank6_10['Name'].tolist())
-                 awards_list.append([
-                    mk_para("Karna Veerta Award", style_award_name),
-                    mk_para("The Brave Warriors (Rank 6 to 10). Talented fighters who fought hard and missed the top 5 by a narrow margin.", style_desc),
-                    mk_para(names_str, style_winner)
-                ])
-
-            # 6. Angad Stambh
-            angad_candidates = out_df[
-                (out_df['Absent'] == 0) & 
-                (out_df['Percentage'] >= thresh_yellow) & 
-                (out_df['Rank'] > 10)
-            ]
-            if not angad_candidates.empty:
-                 # Limit to top 5 consistent ones to avoid overflow
-                 angad_candidates = angad_candidates.sort_values(by='Obtained', ascending=False).head(5)
-                 names_str = "<br/>".join(angad_candidates['Name'].tolist())
-                 awards_list.append([
-                    mk_para("Angad Stambh Award", style_award_name),
-                    mk_para("The Unmovable Pillar. Awarded for 100% Attendance & Passing All Tests. They stood firm in every exam!", style_desc),
-                    mk_para(names_str, style_winner)
-                ])
-
-            # 7. Bhagirath Prayas
-            bhagirath_candidates = out_df[
-                (out_df['Percentage'] >= thresh_yellow) & 
-                (out_df['Percentage'] < thresh_green) &
-                (out_df['Present'] / out_df['Total Tests'] >= 0.8) &
-                (out_df['Rank'] > 10) & 
-                (out_df['Absent'] > 0)
-            ]
-            if not bhagirath_candidates.empty:
-                 bhagirath_candidates = bhagirath_candidates.sort_values(by='Obtained', ascending=False).head(5)
-                 names_str = "<br/>".join(bhagirath_candidates['Name'].tolist())
-                 awards_list.append([
-                    mk_para("Bhagirath Prayas Award", style_award_name),
-                    mk_para("The Relentless Effort. Awarded for High Attendance (>80%) & Hard Work. Students striving to turn the tide and improve.", style_desc),
-                    mk_para(names_str, style_winner)
-                ])
-
-            award_header = ["AWARD CATEGORY", "DESCRIPTION", "WINNER(S)"]
-            table_data = [award_header] + awards_list
-            
-            aw_widths = [0.35*TABLE_WIDTH, 0.35*TABLE_WIDTH, 0.30*TABLE_WIDTH]
-            aw_table = Table(table_data, colWidths=aw_widths)
-            
-            aw_style = TableStyle([
-                ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")),
-                ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER),
-                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                ('FONT', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                ('LEFTPADDING', (0,0), (-1,-1), 6),
-                ('RIGHTPADDING', (0,0), (-1,-1), 6),
-                ('TOPPADDING', (0,0), (-1,-1), 8),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-            ])
-
-            for i in range(1, len(table_data)):
-                base_bg = colors.Color(0.96,0.97,1.0) if i%2==0 else colors.white
-                aw_style.add('BACKGROUND', (0,i), (-1,i), base_bg)
-            
-            aw_table.setStyle(aw_style)
-            w, h = aw_table.wrapOn(c, TABLE_WIDTH, PAGE_H)
-            aw_table.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
-
-            c.setFont("Helvetica-Bold", 8)
-            c.setFillColor(colors.white)
-            c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages_approx}/{total_pages_approx}")
-            add_social_links(c)
-            
-            c.showPage()
-            c.save()
-            buffer.seek(0)
-            
-            final_pdf_name = output_filename.strip()
-            if not final_pdf_name.endswith('.pdf'): final_pdf_name += ".pdf"
-            
-            st.success("✅ Consolidated Report Generated Successfully!")
-            st.download_button(label=f"📥 Download {final_pdf_name}", data=buffer, file_name=final_pdf_name, mime="application/pdf")
+        # --- BUTTON 2: GENERATE CERTIFICATES PDF ---
+        if col_btn2.button("🏆 Generate Certificates PDF", type="secondary"):
+            with st.spinner("Generating Certificates..."):
+                cert_buffer = generate_certificates_pdf(out_df, thresh_yellow, thresh_green)
+                cert_name = f"Certificates_{output_filename.strip()}.pdf"
+                st.download_button(label=f"📥 Download Certificates", data=cert_buffer, file_name=cert_name, mime="application/pdf")
