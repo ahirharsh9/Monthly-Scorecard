@@ -40,8 +40,8 @@ CHAR_IDS = {
 # ==========================================
 
 # 1. LOGO SETTINGS (Left Side)
-CERT_LOGO_WIDTH = 38 * mm       
-CERT_LOGO_HEIGHT = 38 * mm      
+CERT_LOGO_WIDTH = 45 * mm       
+CERT_LOGO_HEIGHT = 45 * mm      
 CERT_LOGO_X_POS = 36 * mm       
 CERT_LOGO_Y_POS = 143 * mm      
 
@@ -53,13 +53,13 @@ CERT_SIGN_Y_POS = 38 * mm
 
 # 3. CHARACTER IMAGE SETTINGS (Right Side - Background)
 # Size increased approx 3x (Old was 55mm -> New 150mm)
-CERT_CHAR_WIDTH = 150 * mm      
-CERT_CHAR_HEIGHT = 150 * mm     
+CERT_CHAR_WIDTH = 125 * mm      
+CERT_CHAR_HEIGHT = 125 * mm     
 # Positioned on the Right side (Opposite to Logo)
 # A4 width is 297mm. 297 - 36 (margin) - 150 (width) = ~111mm start
-CERT_CHAR_X_POS = 130 * mm      
+CERT_CHAR_X_POS = 135 * mm      
 CERT_CHAR_Y_POS = 40 * mm       # Vertically centered somewhat
-CERT_CHAR_OPACITY = 0.15         # 0.15 = Very Light Watermark, 0.5 = Semi Transparent
+CERT_CHAR_OPACITY = 0.5         # 0.15 = Very Light Watermark, 0.5 = Semi Transparent
 
 # ==========================================
 
