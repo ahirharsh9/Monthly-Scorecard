@@ -8,7 +8,7 @@ import requests
 from PIL import Image
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
-from reportlab.lib.units import mm, inch
+from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -19,8 +19,10 @@ from reportlab.lib.enums import TA_CENTER
 TG_LINK = "https://t.me/MurlidharAcademy"
 IG_LINK = "https://www.instagram.com/murlidhar_academy_official/"
 
-# ✅ Default Google Drive Background Image
-DEFAULT_DRIVE_ID = "1a1ZK5uiLl0a63Pto1EQDUY0VaIlqp21u"
+# ✅ Google Drive Image IDs
+DEFAULT_DRIVE_ID = "1a1ZK5uiLl0a63Pto1EQDUY0VaIlqp21u"  # Background
+SIGNATURE_ID = "1HVAxovsvgVG98oB4ij9oyzTX3DHaPP4T"      # Director Sign
+LOGO_ID = "1higc2vjFchMQgFYStkpYO11wW5sUtJR2"           # Academy Logo
 
 LEFT_MARGIN_mm = 18
 RIGHT_MARGIN_mm = 18
@@ -36,7 +38,7 @@ COLOR_GREEN = colors.HexColor("#C8E6C9")
 COLOR_YELLOW = colors.HexColor("#FFF9C4")
 COLOR_RED = colors.HexColor("#FFCDD2")
 COLOR_SAFFRON = colors.HexColor("#FF9933")
-COLOR_GOLD = colors.HexColor("#B8860B") # Dark Gold
+COLOR_GOLD = colors.HexColor("#B8860B")
 
 # ✅ SUMMARY COLORS
 SUMMARY_HEADER_COLORS = {
@@ -50,14 +52,14 @@ def get_drive_url(file_id):
     return f'https://drive.google.com/uc?export=download&id={file_id}'
 
 @st.cache_data(show_spinner=False)
-def download_default_bg(file_id):
+def download_image_from_drive(file_id):
     try:
         url = get_drive_url(file_id)
         response = requests.get(url, allow_redirects=True)
         if response.status_code == 200:
             try:
                 img = Image.open(io.BytesIO(response.content))
-                img.verify()
+                img.verify() # Check if it's a valid image
                 return io.BytesIO(response.content)
             except Exception:
                 return None
@@ -132,11 +134,15 @@ def get_smart_row_color(pct, is_even_row, t_green, t_yellow):
     return colors.HexColor("#FFEBEE") if is_even_row else colors.HexColor("#FFCDD2")
 
 # ---------------- CERTIFICATE GENERATOR FUNCTION ----------------
-def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title):
+def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title, cert_date, logo_bytes, sign_bytes):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=landscape(A4))
     width, height = landscape(A4)
     
+    # Prepare Images
+    logo_img = ImageReader(Image.open(logo_bytes)) if logo_bytes else None
+    sign_img = ImageReader(Image.open(sign_bytes)) if sign_bytes else None
+
     awards_to_give = [] 
 
     # 1. Vikramaditya (Rank 1)
@@ -191,58 +197,70 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title)
         c.setLineWidth(5); c.rect(15*mm, 15*mm, width-30*mm, height-30*mm)
         c.setLineWidth(1); c.rect(18*mm, 18*mm, width-36*mm, height-36*mm)
 
-        # Header
+        # ✅ LOGO (Centered Top)
+        if logo_img:
+            logo_w, logo_h = 30*mm, 30*mm # Size
+            c.drawImage(logo_img, (width - logo_w)/2, height - 45*mm, width=logo_w, height=logo_h, mask='auto', preserveAspectRatio=True)
+
+        # Header Text
         c.setFont("Helvetica-Bold", 30)
         c.setFillColor(COLOR_BLUE_HEADER)
-        c.drawCentredString(width/2, height - 45*mm, "MURLIDHAR ACADEMY")
+        # Position below Logo
+        c.drawCentredString(width/2, height - 55*mm, "MURLIDHAR ACADEMY")
         
         c.setFont("Helvetica", 12)
         c.setFillColor(colors.black)
-        c.drawCentredString(width/2, height - 52*mm, "JUNAGADH")
+        c.drawCentredString(width/2, height - 62*mm, "JUNAGADH")
 
         # Titles
         c.setFont("Helvetica-Oblique", 18)
         c.setFillColor(colors.black)
-        c.drawCentredString(width/2, height - 70*mm, "Certificate of Achievement")
+        c.drawCentredString(width/2, height - 80*mm, "Certificate of Achievement")
 
-        # ✅ MAIN RESULT TITLE (Added Here)
+        # Main Result Title
         c.setFont("Helvetica-Bold", 14)
         c.setFillColor(colors.darkgrey)
-        c.drawCentredString(width/2, height - 80*mm, f"For: {report_title}")
+        c.drawCentredString(width/2, height - 90*mm, f"For: {report_title}")
 
         c.setFont("Helvetica", 12)
         c.setFillColor(colors.gray)
-        c.drawCentredString(width/2, height - 92*mm, "This is proudly presented to")
+        c.drawCentredString(width/2, height - 100*mm, "This is proudly presented to")
 
         # Student Name
         c.setFont("Helvetica-Bold", 32)
         c.setFillColor(theme_color)
-        c.drawCentredString(width/2, height - 108*mm, student_name.upper())
+        c.drawCentredString(width/2, height - 118*mm, student_name.upper())
         c.setStrokeColor(colors.black); c.setLineWidth(0.5)
-        c.line(width/2 - 60*mm, height - 111*mm, width/2 + 60*mm, height - 111*mm)
+        c.line(width/2 - 60*mm, height - 121*mm, width/2 + 60*mm, height - 121*mm)
 
         # Award Title
         c.setFont("Helvetica-Bold", 20)
         c.setFillColor(colors.black)
-        c.drawCentredString(width/2, height - 130*mm, title)
+        c.drawCentredString(width/2, height - 138*mm, title)
 
         # Description
         style = ParagraphStyle('Desc', parent=getSampleStyleSheet()['Normal'], fontName='Helvetica', fontSize=14, leading=18, alignment=TA_CENTER, textColor=colors.darkgray)
         p = Paragraph(desc, style)
         w, h = p.wrap(width - 70*mm, 50*mm)
-        p.drawOn(c, (width - w)/2, height - 150*mm)
+        p.drawOn(c, (width - w)/2, height - 158*mm)
 
-        # ✅ SIGNATURE FIX (Moved Line Up)
-        today_str = datetime.date.today().strftime('%d-%m-%Y')
+        # Bottom Section (Date & Signature)
         c.setFont("Helvetica-Bold", 12)
         c.setFillColor(colors.black)
         
-        c.drawString(30*mm, 35*mm, f"Date: {today_str}")
+        # ✅ DATE (Left)
+        c.drawString(30*mm, 35*mm, f"Date: {cert_date}")
         
-        # Line Above Text
+        # ✅ SIGNATURE IMAGE (Right)
+        if sign_img:
+            sign_w, sign_h = 40*mm, 15*mm # Size
+            # Position image above the line
+            c.drawImage(sign_img, width - 75*mm, 40*mm, width=sign_w, height=sign_h, mask='auto', preserveAspectRatio=True)
+
+        # Line & Text
         c.setLineWidth(1)
-        c.line(width - 80*mm, 45*mm, width - 30*mm, 45*mm) 
-        c.drawCentredString((width - 80*mm + width - 30*mm)/2, 38*mm, "Director Signature")
+        c.line(width - 80*mm, 38*mm, width - 30*mm, 38*mm) 
+        c.drawCentredString((width - 80*mm + width - 30*mm)/2, 32*mm, "Director Signature")
 
         c.showPage()
 
@@ -254,18 +272,22 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title)
 st.set_page_config(page_title="Murlidhar Academy Report System", page_icon="🎓", layout="centered")
 st.title("🎓 Murlidhar Academy Report System")
 
+# Load Images silently
 if 'default_bg_data' not in st.session_state:
-    st.session_state['default_bg_data'] = download_default_bg(DEFAULT_DRIVE_ID)
+    st.session_state['default_bg_data'] = download_image_from_drive(DEFAULT_DRIVE_ID)
+if 'logo_data' not in st.session_state:
+    st.session_state['logo_data'] = download_image_from_drive(LOGO_ID)
+if 'sign_data' not in st.session_state:
+    st.session_state['sign_data'] = download_image_from_drive(SIGNATURE_ID)
 
 with st.sidebar:
     st.header("🎨 Settings")
     thresh_green = st.number_input("Green Zone (>= %)", min_value=0, max_value=100, value=70)
     thresh_yellow = st.number_input("Yellow Zone (>= %)", min_value=0, max_value=100, value=40)
     st.markdown("---")
-    if st.session_state['default_bg_data']:
-        st.success("✅ Background loaded from Drive")
-    else:
-        st.warning("⚠️ Background loading failed")
+    if st.session_state['default_bg_data']: st.success("✅ Background loaded")
+    if st.session_state['logo_data']: st.success("✅ Logo loaded")
+    if st.session_state['sign_data']: st.success("✅ Signature loaded")
 
 col1, col2 = st.columns(2)
 report_header_title = col1.text_input("Main Report Header", f"MONTHLY RESULT REPORT - {datetime.date.today().strftime('%B %Y')}")
@@ -326,12 +348,15 @@ if uploaded_files:
         out_df['Rank'] = out_df['Obtained'].rank(method='dense', ascending=False).astype(int)
         out_df = out_df.sort_values(by=['Rank', 'Name']).reset_index(drop=True)
 
-        st.success("✅ Data Processed Successfully!")
+        st.success("✅ Data Processed! Ready to Generate.")
+        
+        st.markdown("### 🗓️ Certificate Settings")
+        cert_date_input = st.text_input("Enter Date for Certificate (DD-MM-YYYY)", value=datetime.date.today().strftime('%d-%m-%Y'))
 
         col_btn1, col_btn2 = st.columns(2)
 
         # --- BUTTON 1: REPORT PDF ---
-        if col_btn1.button("📄 Generate Full Report PDF", type="primary"):
+        if col_btn1.button("📄 Generate Report PDF", type="primary"):
             with st.spinner("Generating Report..."):
                 buffer = io.BytesIO()
                 c = canvas.Canvas(buffer, pagesize=A4)
@@ -389,7 +414,7 @@ if uploaded_files:
                     c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {p+1}/{total_pages_approx}")
                     add_social_links(c); c.showPage()
 
-                # Summary Page
+                # Summary
                 draw_bg_and_header(c, summary_page_title)
                 avg_obt = out_df['Obtained'].mean()
                 pass_count = len(out_df[out_df['Percentage'] >= thresh_yellow])
@@ -433,7 +458,6 @@ if uploaded_files:
                 awards_list = []
                 def mk_para(text, style): return Paragraph(text, style)
                 
-                # RE-ADDED FULL DESCRIPTIONS FOR HALL OF FAME
                 rank1 = out_df[out_df['Rank'] == 1]
                 if not rank1.empty: awards_list.append([mk_para("Vikramaditya Excellence Award", style_an), mk_para("The Batch Topper (Rank 1). Awarded for ruling the result sheet with the highest score and supreme excellence.", style_ad), mk_para("<br/>".join(rank1['Name'].tolist()), style_aw)])
                 
@@ -472,6 +496,17 @@ if uploaded_files:
         # --- BUTTON 2: CERTIFICATES ---
         if col_btn2.button("🏆 Generate Certificates PDF", type="secondary"):
             with st.spinner("Generating Certificates..."):
-                cert_buffer = generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_header_title)
+                # Get Image Bytes from Session State
+                logo_bytes = None
+                if st.session_state['logo_data']:
+                    st.session_state['logo_data'].seek(0)
+                    logo_bytes = st.session_state['logo_data']
+                
+                sign_bytes = None
+                if st.session_state['sign_data']:
+                    st.session_state['sign_data'].seek(0)
+                    sign_bytes = st.session_state['sign_data']
+
+                cert_buffer = generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_header_title, cert_date_input, logo_bytes, sign_bytes)
                 cert_name = f"Certificates_{output_filename.strip()}.pdf"
                 st.download_button(label=f"📥 Download Certificates", data=cert_buffer, file_name=cert_name, mime="application/pdf")
