@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
-from reportlab.platypus import Table, TableStyle, Paragraph
+from reportlab.platypus import Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.utils import ImageReader
 
@@ -137,8 +137,9 @@ if 'default_bg_data' not in st.session_state:
 
 with st.sidebar:
     st.header("🎨 Color Grading Rules")
-    thresh_green = st.number_input("Green Zone (Excellent >= %)", min_value=0, max_value=100, value=80)
-    thresh_yellow = st.number_input("Yellow Zone (Average >= %)", min_value=0, max_value=100, value=50)
+    # ✅ Updated Defaults: 70 and 40
+    thresh_green = st.number_input("Green Zone (Excellent >= %)", min_value=0, max_value=100, value=70)
+    thresh_yellow = st.number_input("Yellow Zone (Average >= %)", min_value=0, max_value=100, value=40)
     st.markdown("---")
     if st.session_state['default_bg_data']:
         st.success("✅ Background loaded from Drive")
@@ -149,7 +150,6 @@ col1, col2 = st.columns(2)
 report_header_title = col1.text_input("Main Report Header (PDF Top)", f"MONTHLY RESULT REPORT - {datetime.date.today().strftime('%B %Y')}")
 output_filename = col2.text_input("Output Filename", f"Monthly_Report_{datetime.date.today().strftime('%b_%Y')}")
 
-# ✅ NEW TEXTBOX FOR SUMMARY PAGE TITLE
 summary_page_title = st.text_input("Summary Page Title", "SUMMARY & ANALYSIS OF THE MONTH")
 
 uploaded_files = st.file_uploader("Upload CSV Files (Select Multiple)", type=['csv'], accept_multiple_files=True)
@@ -268,7 +268,11 @@ if uploaded_files:
                 data_rows.append(row)
 
             total_pages_main = math.ceil(len(data_rows) / ROWS_PER_PAGE)
-            total_pages = total_pages_main + 2 # +1 Summary, +1 Awards
+            # Estimate pages: Main + Summary + Hall of Fame (could be 1 or 2 pages)
+            # We'll just calculate total pages at the end or use placeholders.
+            # Simple approach: main + 2 fixed
+            total_pages_approx = total_pages_main + 2
+            
             TABLE_TOP_Y = PAGE_H - (TITLE_Y_mm_from_top * mm) - (TABLE_SPACE_AFTER_TITLE_mm * mm)
 
             for p in range(total_pages_main):
@@ -303,15 +307,14 @@ if uploaded_files:
                 w, h = t.wrapOn(c, TABLE_WIDTH, PAGE_H)
                 t.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
                 
-                # ✅ BOLD PAGE NUMBER
                 c.setFont("Helvetica-Bold", 8)
                 c.setFillColor(colors.white)
-                c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {p+1}/{total_pages}")
+                c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {p+1}/{total_pages_approx}")
                 add_social_links(c)
                 c.showPage()
 
             # --- SUMMARY PAGE ---
-            draw_bg_and_header(c, summary_page_title) # ✅ Used Custom Title
+            draw_bg_and_header(c, summary_page_title)
             
             avg_obt = out_df['Obtained'].mean()
             pass_count = len(out_df[out_df['Percentage'] >= thresh_yellow])
@@ -384,21 +387,18 @@ if uploaded_files:
             w, h = st_table.wrapOn(c, TABLE_WIDTH, PAGE_H)
             st_table.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
             
-            # ✅ BOLD PAGE NUMBER
             c.setFont("Helvetica-Bold", 8)
             c.setFillColor(colors.white)
-            c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages-1}/{total_pages}")
+            c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages_approx-1}/{total_pages_approx}")
             add_social_links(c)
             c.showPage()
 
-            # --- HALL OF FAME PAGE (AWARDS) ---
+            # --- HALL OF FAME PAGE ---
             draw_bg_and_header(c, "HALL OF FAME")
 
-            # Paragraph Styles for Wrapping text
             styles = getSampleStyleSheet()
             style_award_name = ParagraphStyle('AN', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.black, alignment=1)
             style_desc = ParagraphStyle('AD', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=colors.black, alignment=1)
-            # Winner Name Style: Blue & Bold
             style_winner = ParagraphStyle('AW', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=COLOR_BLUE_HEADER, alignment=1, leading=12)
 
             awards_list = []
@@ -411,7 +411,7 @@ if uploaded_files:
                 names_str = "<br/>".join(rank1['Name'].tolist())
                 awards_list.append([
                     mk_para("Vikramaditya Excellence Award", style_award_name),
-                    mk_para("Awarded for securing the 1st Rank with the highest overall score.", style_desc),
+                    mk_para("For Highest Score (Rank 1). The King of the batch.", style_desc),
                     mk_para(names_str, style_winner)
                 ])
             
@@ -421,7 +421,7 @@ if uploaded_files:
                 names_str = "<br/>".join(rank2['Name'].tolist())
                 awards_list.append([
                     mk_para("Chanakya Niti Award", style_award_name),
-                    mk_para("Awarded for exceptional intelligence and securing the 2nd Rank.", style_desc),
+                    mk_para("For Outstanding Intelligence & Strategy (Rank 2).", style_desc),
                     mk_para(names_str, style_winner)
                 ])
             
@@ -431,40 +431,69 @@ if uploaded_files:
                 names_str = "<br/>".join(rank3['Name'].tolist())
                 awards_list.append([
                     mk_para("Arjuna Focus Award", style_award_name),
-                    mk_para("Awarded for laser-sharp focus and securing the 3rd Rank.", style_desc),
+                    mk_para("For Unwavering Focus & Precision (Rank 3).", style_desc),
                     mk_para(names_str, style_winner)
                 ])
 
-            # 4. Eklavya (100% Present)
-            full_present = out_df[out_df['Absent'] == 0]
-            if not full_present.empty:
-                # Top 5 by marks if many
-                full_present = full_present.sort_values(by='Obtained', ascending=False).head(5)
-                names_str = "<br/>".join(full_present['Name'].tolist())
-                awards_list.append([
-                    mk_para("Eklavya Dedication Award", style_award_name),
-                    mk_para("Awarded for 100% attendance and dedication across all tests.", style_desc),
-                    mk_para(names_str, style_winner)
-                ])
-
-            # 5. Dhruva (Rank 4 & 5)
+            # 4. Dhruva (Rank 4 & 5)
             rank45 = out_df[out_df['Rank'].isin([4, 5])]
             if not rank45.empty:
                  names_str = "<br/>".join(rank45['Name'].tolist())
                  awards_list.append([
                     mk_para("Dhruva Tara Award", style_award_name),
-                    mk_para("Awarded to consistent performers securing 4th & 5th positions.", style_desc),
+                    mk_para("Consistently Shining Star (Rank 4 & 5).", style_desc),
                     mk_para(names_str, style_winner)
                 ])
 
-            # Awards Table
+            # 5. Karna (Rank 6-10) - NEW
+            rank6_10 = out_df[out_df['Rank'].isin([6,7,8,9,10])]
+            if not rank6_10.empty:
+                 names_str = "<br/>".join(rank6_10['Name'].tolist())
+                 awards_list.append([
+                    mk_para("Karna Veerta Award", style_award_name),
+                    mk_para("The Unsung Warriors (Rank 6 to 10). Fighters who just missed the top.", style_desc),
+                    mk_para(names_str, style_winner)
+                ])
+
+            # 6. Angad Stambh (100% Present + Passed + NOT in Top 10) - NEW
+            # Logic: Absent=0, Percentage >= Yellow Threshold, Rank > 10
+            angad_candidates = out_df[
+                (out_df['Absent'] == 0) & 
+                (out_df['Percentage'] >= thresh_yellow) & 
+                (out_df['Rank'] > 10)
+            ]
+            if not angad_candidates.empty:
+                 names_str = "<br/>".join(angad_candidates['Name'].tolist())
+                 awards_list.append([
+                    mk_para("Angad Stambh Award", style_award_name),
+                    mk_para("Unmovable Consistency. 100% Attendance & Passed in all.", style_desc),
+                    mk_para(names_str, style_winner)
+                ])
+
+            # 7. Bhagirath Prayas (Hard Work) - NEW
+            # Logic: Percentage between 40-70, Attendance > 80%, Not in Top 10, Not Angad
+            # To simplify: % >= 40 AND % < 70 AND Attendance > 80%
+            bhagirath_candidates = out_df[
+                (out_df['Percentage'] >= thresh_yellow) & 
+                (out_df['Percentage'] < thresh_green) &
+                (out_df['Present'] / out_df['Total Tests'] >= 0.8) &
+                (out_df['Rank'] > 10) & 
+                (out_df['Absent'] > 0) # Use Absent>0 to differentiate from Angad
+            ]
+            if not bhagirath_candidates.empty:
+                 names_str = "<br/>".join(bhagirath_candidates['Name'].tolist())
+                 awards_list.append([
+                    mk_para("Bhagirath Prayas Award", style_award_name),
+                    mk_para("Extraordinary Effort. Regular attendance with improving marks.", style_desc),
+                    mk_para(names_str, style_winner)
+                ])
+
             award_header = ["AWARD CATEGORY", "DESCRIPTION", "WINNER(S)"]
             table_data = [award_header] + awards_list
             
             aw_widths = [0.35*TABLE_WIDTH, 0.35*TABLE_WIDTH, 0.30*TABLE_WIDTH]
             aw_table = Table(table_data, colWidths=aw_widths)
             
-            # ✅ Match Summary Table Theme
             aw_style = TableStyle([
                 ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")),
                 ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER),
@@ -484,12 +513,14 @@ if uploaded_files:
             
             aw_table.setStyle(aw_style)
             w, h = aw_table.wrapOn(c, TABLE_WIDTH, PAGE_H)
+            
+            # Auto-page break logic for awards if list is too long (Simple version: drawing on current page)
+            # Given limited awards, it usually fits on one page.
             aw_table.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
 
-            # ✅ BOLD PAGE NUMBER
             c.setFont("Helvetica-Bold", 8)
             c.setFillColor(colors.white)
-            c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages}/{total_pages}")
+            c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages_approx}/{total_pages_approx}")
             add_social_links(c)
             
             c.showPage()
