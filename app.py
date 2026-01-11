@@ -146,8 +146,11 @@ with st.sidebar:
         st.warning("⚠️ Background loading failed")
 
 col1, col2 = st.columns(2)
-report_header_title = col1.text_input("Report Header Title (in PDF)", f"MONTHLY RESULT REPORT - {datetime.date.today().strftime('%B %Y')}")
-output_filename = col2.text_input("Output Filename (without .pdf)", f"Monthly_Report_{datetime.date.today().strftime('%b_%Y')}")
+report_header_title = col1.text_input("Main Report Header (PDF Top)", f"MONTHLY RESULT REPORT - {datetime.date.today().strftime('%B %Y')}")
+output_filename = col2.text_input("Output Filename", f"Monthly_Report_{datetime.date.today().strftime('%b_%Y')}")
+
+# ✅ NEW TEXTBOX FOR SUMMARY PAGE TITLE
+summary_page_title = st.text_input("Summary Page Title", "SUMMARY & ANALYSIS OF THE MONTH")
 
 uploaded_files = st.file_uploader("Upload CSV Files (Select Multiple)", type=['csv'], accept_multiple_files=True)
 
@@ -300,14 +303,15 @@ if uploaded_files:
                 w, h = t.wrapOn(c, TABLE_WIDTH, PAGE_H)
                 t.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
                 
-                c.setFont("Helvetica", 8)
+                # ✅ BOLD PAGE NUMBER
+                c.setFont("Helvetica-Bold", 8)
                 c.setFillColor(colors.white)
                 c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {p+1}/{total_pages}")
                 add_social_links(c)
                 c.showPage()
 
             # --- SUMMARY PAGE ---
-            draw_bg_and_header(c, "SUMMARY & ANALYSIS OF THE MONTH")
+            draw_bg_and_header(c, summary_page_title) # ✅ Used Custom Title
             
             avg_obt = out_df['Obtained'].mean()
             pass_count = len(out_df[out_df['Percentage'] >= thresh_yellow])
@@ -380,14 +384,15 @@ if uploaded_files:
             w, h = st_table.wrapOn(c, TABLE_WIDTH, PAGE_H)
             st_table.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
             
-            c.setFont("Helvetica", 8)
+            # ✅ BOLD PAGE NUMBER
+            c.setFont("Helvetica-Bold", 8)
             c.setFillColor(colors.white)
             c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages-1}/{total_pages}")
             add_social_links(c)
             c.showPage()
 
             # --- HALL OF FAME PAGE (AWARDS) ---
-            draw_bg_and_header(c, "HALL OF FAME") # Changed Title
+            draw_bg_and_header(c, "HALL OF FAME")
 
             # Paragraph Styles for Wrapping text
             styles = getSampleStyleSheet()
@@ -398,7 +403,6 @@ if uploaded_files:
 
             awards_list = []
             
-            # Helper to create Paragraphs
             def mk_para(text, style): return Paragraph(text, style)
 
             # 1. Vikramaditya (Rank 1)
@@ -407,7 +411,7 @@ if uploaded_files:
                 names_str = "<br/>".join(rank1['Name'].tolist())
                 awards_list.append([
                     mk_para("Vikramaditya Excellence Award", style_award_name),
-                    mk_para("For Highest Score (Rank 1)", style_desc),
+                    mk_para("Awarded for securing the 1st Rank with the highest overall score.", style_desc),
                     mk_para(names_str, style_winner)
                 ])
             
@@ -417,7 +421,7 @@ if uploaded_files:
                 names_str = "<br/>".join(rank2['Name'].tolist())
                 awards_list.append([
                     mk_para("Chanakya Niti Award", style_award_name),
-                    mk_para("For Outstanding Intelligence (Rank 2)", style_desc),
+                    mk_para("Awarded for exceptional intelligence and securing the 2nd Rank.", style_desc),
                     mk_para(names_str, style_winner)
                 ])
             
@@ -427,7 +431,7 @@ if uploaded_files:
                 names_str = "<br/>".join(rank3['Name'].tolist())
                 awards_list.append([
                     mk_para("Arjuna Focus Award", style_award_name),
-                    mk_para("For Unwavering Focus (Rank 3)", style_desc),
+                    mk_para("Awarded for laser-sharp focus and securing the 3rd Rank.", style_desc),
                     mk_para(names_str, style_winner)
                 ])
 
@@ -439,7 +443,7 @@ if uploaded_files:
                 names_str = "<br/>".join(full_present['Name'].tolist())
                 awards_list.append([
                     mk_para("Eklavya Dedication Award", style_award_name),
-                    mk_para("For 100% Attendance & Dedication", style_desc),
+                    mk_para("Awarded for 100% attendance and dedication across all tests.", style_desc),
                     mk_para(names_str, style_winner)
                 ])
 
@@ -449,7 +453,7 @@ if uploaded_files:
                  names_str = "<br/>".join(rank45['Name'].tolist())
                  awards_list.append([
                     mk_para("Dhruva Tara Award", style_award_name),
-                    mk_para("Consistent Performer (Rising Star)", style_desc),
+                    mk_para("Awarded to consistent performers securing 4th & 5th positions.", style_desc),
                     mk_para(names_str, style_winner)
                 ])
 
@@ -460,7 +464,7 @@ if uploaded_files:
             aw_widths = [0.35*TABLE_WIDTH, 0.35*TABLE_WIDTH, 0.30*TABLE_WIDTH]
             aw_table = Table(table_data, colWidths=aw_widths)
             
-            # Use same styling as Summary Table (Blue Header, Grid)
+            # ✅ Match Summary Table Theme
             aw_style = TableStyle([
                 ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")),
                 ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER),
@@ -482,9 +486,10 @@ if uploaded_files:
             w, h = aw_table.wrapOn(c, TABLE_WIDTH, PAGE_H)
             aw_table.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
 
-            c.setFont("Helvetica", 8)
+            # ✅ BOLD PAGE NUMBER
+            c.setFont("Helvetica-Bold", 8)
             c.setFillColor(colors.white)
-            c.drawRightString(PAGE_W - 18*mm, PAGE_NO_Y_mm*mm, f"Page {total_pages}/{total_pages}")
+            c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages}/{total_pages}")
             add_social_links(c)
             
             c.showPage()
