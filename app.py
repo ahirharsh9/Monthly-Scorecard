@@ -31,8 +31,8 @@ LOGO_ID = "1BGvxglcgZ2G6FdVelLjXZVo-_v4e4a42"
 # 1. LOGO SETTINGS
 CERT_LOGO_WIDTH = 40 * mm       # લોગોની પહોળાઈ (Size)
 CERT_LOGO_HEIGHT = 40 * mm      # લોગોની ઊંચાઈ
-CERT_LOGO_X_POS = 40 * mm       # લોગો ડાબી બાજુથી કેટલો દૂર રાખવો
-CERT_LOGO_Y_POS = 145 * mm      # લોગો નીચેથી કેટલો ઉપર રાખવો (Vertically)
+CERT_LOGO_X_POS = 36 * mm       # લોગો ડાબી બાજુથી કેટલો દૂર રાખવો
+CERT_LOGO_Y_POS = 142 * mm      # લોગો નીચેથી કેટલો ઉપર રાખવો (Vertically)
 
 # 2. SIGNATURE SETTINGS
 CERT_SIGN_WIDTH = 60 * mm       # સહીની સાઈઝ (પહોળાઈ)
