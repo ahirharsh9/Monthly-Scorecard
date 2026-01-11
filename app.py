@@ -19,10 +19,10 @@ from reportlab.lib.enums import TA_CENTER
 TG_LINK = "https://t.me/MurlidharAcademy"
 IG_LINK = "https://www.instagram.com/murlidhar_academy_official/"
 
-# ✅ Google Drive Image IDs
+# ✅ Google Drive Image IDs (UPDATED JPG LINKS)
 DEFAULT_DRIVE_ID = "1a1ZK5uiLl0a63Pto1EQDUY0VaIlqp21u"  # Background
-SIGNATURE_ID = "1HVAxovsvgVG98oB4ij9oyzTX3DHaPP4T"      # Director Sign
-LOGO_ID = "1higc2vjFchMQgFYStkpYO11wW5sUtJR2"           # Academy Logo
+SIGNATURE_ID = "1U0es4MVJgGniK27rcrA6hiLFFRazmwCs"      # Director Sign (JPG)
+LOGO_ID = "1BGvxglcgZ2G6FdVelLjXZVo-_v4e4a42"           # Academy Logo (JPG)
 
 LEFT_MARGIN_mm = 18
 RIGHT_MARGIN_mm = 18
@@ -62,26 +62,6 @@ def download_image_from_drive(file_id):
         else:
             return None
     except:
-        return None
-
-# ✅ NEW HELPER FOR TRANSPARENT IMAGES
-def get_transparent_image_reader(img_bytes):
-    """Ensures PNG transparency is correctly handled by ReportLab."""
-    if not img_bytes: return None
-    try:
-        img_bytes.seek(0) # Reset pointer just in case
-        img = Image.open(img_bytes)
-        # Ensure RGBA Mode for transparency
-        if img.mode != 'RGBA':
-            img = img.convert('RGBA')
-        
-        # Save to a new buffer as PNG to ensure clean data for ReportLab
-        new_buffer = io.BytesIO()
-        img.save(new_buffer, format='PNG')
-        new_buffer.seek(0)
-        return ImageReader(new_buffer)
-    except Exception as e:
-        print(f"Error processing image for transparency: {e}")
         return None
 
 def normalize_name(s):
@@ -155,9 +135,9 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
     c = canvas.Canvas(buffer, pagesize=landscape(A4))
     width, height = landscape(A4)
     
-    # ✅ Use the new helper to process images correctly for transparency
-    logo_img = get_transparent_image_reader(logo_bytes)
-    sign_img = get_transparent_image_reader(sign_bytes)
+    # Prepare Images (Simple method for JPGs)
+    logo_img = ImageReader(Image.open(logo_bytes)) if logo_bytes else None
+    sign_img = ImageReader(Image.open(sign_bytes)) if sign_bytes else None
 
     awards_to_give = [] 
 
@@ -213,20 +193,19 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
         c.setLineWidth(5); c.rect(15*mm, 15*mm, width-30*mm, height-30*mm)
         c.setLineWidth(1); c.rect(18*mm, 18*mm, width-36*mm, height-36*mm)
 
-        # ✅ LOGO (Moved Down)
+        # LOGO (Moved Down)
         if logo_img:
             logo_w, logo_h = 30*mm, 30*mm
-            # Changed Y from height-45mm to height-55mm to avoid overlap
             c.drawImage(logo_img, (width - logo_w)/2, height - 55*mm, width=logo_w, height=logo_h, mask='auto', preserveAspectRatio=True)
 
         # Header Text
         c.setFont("Helvetica-Bold", 30)
         c.setFillColor(COLOR_BLUE_HEADER)
-        c.drawCentredString(width/2, height - 65*mm, "MURLIDHAR ACADEMY") # Adjusted Y
+        c.drawCentredString(width/2, height - 65*mm, "MURLIDHAR ACADEMY")
         
         c.setFont("Helvetica", 12)
         c.setFillColor(colors.black)
-        c.drawCentredString(width/2, height - 72*mm, "JUNAGADH") # Adjusted Y
+        c.drawCentredString(width/2, height - 72*mm, "JUNAGADH")
 
         # Titles
         c.setFont("Helvetica-Oblique", 18)
@@ -267,11 +246,9 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
         # DATE (Left)
         c.drawString(30*mm, 35*mm, f"Date: {cert_date}")
         
-        # ✅ SIGNATURE IMAGE (Bigger Size & Positioned)
+        # SIGNATURE IMAGE (Bigger Size & Positioned Right)
         if sign_img:
-            # Increased size significantly
             sign_w, sign_h = 70*mm, 25*mm 
-            # Positioned above the line
             c.drawImage(sign_img, width - 85*mm, 42*mm, width=sign_w, height=sign_h, mask='auto', preserveAspectRatio=True)
 
         # Line & Text
@@ -289,8 +266,7 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
 st.set_page_config(page_title="Murlidhar Academy Report System", page_icon="🎓", layout="centered")
 st.title("🎓 Murlidhar Academy Report System")
 
-# Load Images silently with new helper method implied by logic flow, but actually just getting bytes here.
-# The transparency fix happens inside generate_certificates_pdf
+# Load Images silently
 if 'default_bg_data' not in st.session_state:
     st.session_state['default_bg_data'] = download_image_from_drive(DEFAULT_DRIVE_ID)
 if 'logo_data' not in st.session_state:
@@ -381,8 +357,6 @@ if uploaded_files:
                 PAGE_W, PAGE_H = A4
                 TEMPLATE_IMG = None
                 if st.session_state['default_bg_data']:
-                    # Use the transparent helper for the main report BG too if needed, 
-                    # but usually JPG is fine here. Sticking to simple read for now.
                     st.session_state['default_bg_data'].seek(0)
                     TEMPLATE_IMG = ImageReader(Image.open(st.session_state['default_bg_data']))
 
