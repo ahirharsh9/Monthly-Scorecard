@@ -40,21 +40,21 @@ CHAR_IDS = {
 # ==========================================
 
 # 1. LOGO SETTINGS (Left Side)
-CERT_LOGO_WIDTH = 40 * mm       
-CERT_LOGO_HEIGHT = 40 * mm      
-CERT_LOGO_X_POS = 36 * mm       
-CERT_LOGO_Y_POS = 143 * mm      
+CERT_LOGO_WIDTH = 40 * mm        
+CERT_LOGO_HEIGHT = 40 * mm       
+CERT_LOGO_X_POS = 36 * mm        
+CERT_LOGO_Y_POS = 143 * mm       
 
 # 2. SIGNATURE SETTINGS (Bottom Right)
-CERT_SIGN_WIDTH = 65 * mm       
-CERT_SIGN_HEIGHT = 22 * mm      
-CERT_SIGN_X_POS = 235 * mm      
-CERT_SIGN_Y_POS = 38 * mm       
+CERT_SIGN_WIDTH = 65 * mm        
+CERT_SIGN_HEIGHT = 22 * mm       
+CERT_SIGN_X_POS = 235 * mm       
+CERT_SIGN_Y_POS = 38 * mm        
 
 # 3. CHARACTER IMAGE SETTINGS (Right Side - Background)
-CERT_CHAR_WIDTH = 78 * mm      # Size (Width)
-CERT_CHAR_HEIGHT = 78 * mm     # Size (Height)
-CERT_CHAR_OPACITY = 1        # Opacity (0.35 is perfect as per your request)
+CERT_CHAR_WIDTH = 78 * mm       # Size (Width)
+CERT_CHAR_HEIGHT = 78 * mm      # Size (Height)
+CERT_CHAR_OPACITY = 1         # Opacity (0.35 is perfect as per your request)
 
 # 👇👇👇 (અહીંથી પોઝિશન સેટ કરો) 👇👇👇
 CERT_CHAR_MARGIN_RIGHT = 16 * mm   # જમણી બાજુથી કેટલું દૂર રાખવું? (Right Margin)
@@ -86,8 +86,8 @@ COLOR_GOLD = colors.HexColor("#B8860B")
 
 # ✅ SUMMARY COLORS
 SUMMARY_HEADER_COLORS = {
-    "METRIC": colors.HexColor("#1976D2"),           
-    "TOP 5 RANKERS": colors.HexColor("#2E7D32"),    
+    "METRIC": colors.HexColor("#1976D2"),            
+    "TOP 5 RANKERS": colors.HexColor("#2E7D32"),     
     "BOTTOM 3 (NEEDS IMPROVEMENT)": colors.HexColor("#C62828") 
 }
 
@@ -146,17 +146,17 @@ def find_name_series(df):
         fn = df[cols[lc.index('firstname')]].astype(str).fillna("")
         ln = df[cols[lc.index('lastname')]].astype(str).fillna("")
         return (fn.str.strip() + " " + ln.str.strip()).astype(str)
-    
+     
     keywords = ['name','student name','student','full name','studentname', 'candidate']
     for key in keywords:
         for c in cols:
             if key == c.lower().strip():
                 return df[c].astype(str).fillna("").str.strip()
-    
+     
     for c in cols:
         if 'name' in c.lower() or 'student' in c.lower():
             return df[c].astype(str).fillna("").str.strip()
-            
+             
     return pd.Series([f"Student {i+1}" for i in range(len(df))])
 
 def find_possible_pts(df):
@@ -177,14 +177,14 @@ def extract_obtained_series(df):
         clean = c.lower().replace(" ", "")
         if 'earnedpts' in clean or 'obtainedmarks' in clean or 'score' == clean:
             return pd.to_numeric(df[c], errors='coerce').fillna(0).astype(float)
-            
+             
     numeric_candidates = []
     for c in cols:
         if 'phone' in c.lower() or 'id' in c.lower() or 'roll' in c.lower(): continue
         s = pd.to_numeric(df[c], errors='coerce')
         if s.notna().sum() > 0:
             numeric_candidates.append((c, s.mean()))
-    
+     
     if numeric_candidates:
         numeric_candidates.sort(key=lambda x: x[1], reverse=True)
         return pd.to_numeric(df[numeric_candidates[0][0]], errors='coerce').fillna(0).astype(float)
@@ -219,68 +219,88 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
     awards_to_give = [] 
 
     # --- AWARD LOGIC ---
+    # Helper to create stats string
+    def make_stats(row):
+        return f"Rank: {row['Rank']}  |  Tests: {row['Present']}/{row['Total Tests']}  |  Score: {row['Obtained']}/{row['Total Marks']} ({row['Percentage']}%)"
+
     rank1 = out_df[out_df['Rank'] == 1]
     for _, r in rank1.iterrows():
         desc = (
             "Like the legendary King Vikramaditya, known for his wisdom and victory, "
             "you have conquered this challenge with supreme excellence! "
-            f"Your hard work has placed you at the very top. Keep ruling! [Score: {r['Obtained']}/{r['Total Marks']}]"
+            f"Your hard work has placed you at the very top. Keep ruling!"
         )
-        awards_to_give.append((r['Name'], "THE VIKRAMADITYA EXCELLENCE AWARD", desc, COLOR_GOLD, "VIKRAMADITYA"))
+        awards_to_give.append((r['Name'], "THE VIKRAMADITYA EXCELLENCE AWARD", desc, COLOR_GOLD, "VIKRAMADITYA", make_stats(r)))
 
     rank2 = out_df[out_df['Rank'] == 2]
     for _, r in rank2.iterrows():
         desc = (
             "With the sharp intellect of Acharya Chanakya, you have proven that strategy determines success. "
-            f"Your outstanding intelligence and dedication have secured you the prestigious 2nd Rank. [Score: {r['Obtained']}/{r['Total Marks']}]"
+            f"Your outstanding intelligence and dedication have secured you the prestigious 2nd Rank."
         )
-        awards_to_give.append((r['Name'], "THE CHANAKYA NITI AWARD", desc, COLOR_BLUE_HEADER, "CHANAKYA"))
+        awards_to_give.append((r['Name'], "THE CHANAKYA NITI AWARD", desc, COLOR_BLUE_HEADER, "CHANAKYA", make_stats(r)))
 
     rank3 = out_df[out_df['Rank'] == 3]
     for _, r in rank3.iterrows():
         desc = (
             "Just like Arjuna saw only the bird's eye, your laser-sharp focus and precision have hit the mark! "
-            f"This award celebrates your unwavering concentration and excellent performance (Rank 3). [Score: {r['Obtained']}/{r['Total Marks']}]"
+            f"This award celebrates your unwavering concentration and excellent performance (Rank 3)."
         )
-        awards_to_give.append((r['Name'], "THE ARJUNA FOCUS AWARD", desc, COLOR_SAFFRON, "ARJUNA"))
+        awards_to_give.append((r['Name'], "THE ARJUNA FOCUS AWARD", desc, COLOR_SAFFRON, "ARJUNA", make_stats(r)))
 
     rank45 = out_df[out_df['Rank'].isin([4, 5])]
     for _, r in rank45.iterrows():
         desc = (
             "Like the eternal Dhruva Tara (Pole Star), your performance shines bright with stability and consistency. "
-            f"You are a rising star with immense potential to lead the sky! [Score: {r['Obtained']}]"
+            f"You are a rising star with immense potential to lead the sky!"
         )
-        awards_to_give.append((r['Name'], "THE DHRUVA TARA AWARD", desc, COLOR_BLUE_HEADER, "DHRUVA"))
+        awards_to_give.append((r['Name'], "THE DHRUVA TARA AWARD", desc, COLOR_BLUE_HEADER, "DHRUVA", make_stats(r)))
 
     rank6_10 = out_df[out_df['Rank'].isin([6,7,8,9,10])]
     for _, r in rank6_10.iterrows():
         desc = (
             "A true warrior is defined by their spirit! Like Maharathi Karna, you fought bravely and showed immense talent. "
-            f"You are just steps away from the top. Keep fighting, victory is yours! [Score: {r['Obtained']}]"
+            f"You are just steps away from the top. Keep fighting, victory is yours!"
         )
-        awards_to_give.append((r['Name'], "THE KARNA VEERTA AWARD", desc, COLOR_SAFFRON, "KARNA"))
+        awards_to_give.append((r['Name'], "THE KARNA VEERTA AWARD", desc, COLOR_SAFFRON, "KARNA", make_stats(r)))
 
+    # --- UPDATED: ANGAD (TOP 5 + TIES) ---
     angad_candidates = out_df[(out_df['Absent'] == 0) & (out_df['Percentage'] >= thresh_yellow) & (out_df['Rank'] > 10)]
+    # Sort by Obtained Marks Descending
+    angad_candidates = angad_candidates.sort_values(by='Obtained', ascending=False)
+    # Logic: Take top 5, but if there's a tie at the 5th position, include them too.
+    if len(angad_candidates) > 5:
+        cutoff_val = angad_candidates.iloc[4]['Obtained']
+        angad_candidates = angad_candidates[angad_candidates['Obtained'] >= cutoff_val]
+
     for _, r in angad_candidates.iterrows():
         desc = (
             "Firm as Angad's foot in Ravana's court! Your unshakeable discipline and 100% Attendance prove that consistency is the key to success. "
-            "You stood firm in every test! [Attendance: 100%]"
+            "You stood firm in every test!"
         )
-        awards_to_give.append((r['Name'], "THE ANGAD STAMBH AWARD", desc, COLOR_BLUE_HEADER, "ANGAD"))
+        awards_to_give.append((r['Name'], "THE ANGAD STAMBH AWARD", desc, COLOR_BLUE_HEADER, "ANGAD", make_stats(r)))
 
+    # --- UPDATED: BHAGIRATH (TOP 5 + TIES) ---
     bhagirath_candidates = out_df[
         (out_df['Percentage'] >= thresh_yellow) & (out_df['Percentage'] < thresh_green) &
         (out_df['Present'] / out_df['Total Tests'] >= 0.8) & (out_df['Rank'] > 10) & (out_df['Absent'] > 0)
     ]
+    # Sort by Obtained Marks Descending
+    bhagirath_candidates = bhagirath_candidates.sort_values(by='Obtained', ascending=False)
+    # Logic: Take top 5, but if there's a tie at the 5th position, include them too.
+    if len(bhagirath_candidates) > 5:
+        cutoff_val = bhagirath_candidates.iloc[4]['Obtained']
+        bhagirath_candidates = bhagirath_candidates[bhagirath_candidates['Obtained'] >= cutoff_val]
+
     for _, r in bhagirath_candidates.iterrows():
         desc = (
             "Like Bhagirath's relentless penance to bring Ganga to Earth, your hard work and persistence are truly inspiring. "
             "This award honors your 'Never Give Up' attitude and continuous improvement."
         )
-        awards_to_give.append((r['Name'], "THE BHAGIRATH PRAYAS AWARD", desc, COLOR_SAFFRON, "BHAGIRATH"))
+        awards_to_give.append((r['Name'], "THE BHAGIRATH PRAYAS AWARD", desc, COLOR_SAFFRON, "BHAGIRATH", make_stats(r)))
 
     # DRAWING CERTIFICATES
-    for student_name, title, desc, theme_color, char_key in awards_to_give:
+    for student_name, title, desc, theme_color, char_key, stats_text in awards_to_give:
         
         # 1. DRAW CHARACTER IMAGE FIRST (BACKGROUND)
         if char_key in char_readers:
@@ -329,9 +349,9 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
         c.setStrokeColor(colors.black); c.setLineWidth(0.5)
         c.line(center_x - 60*mm, height - 109*mm, center_x + 60*mm, height - 109*mm)
 
-        # Award Title
-        c.setFont("Helvetica-Bold", 20)
-        c.setFillColor(colors.black)
+        # Award Title - HIGHLIGHTED AS REQUESTED
+        c.setFont("Helvetica-Bold", 26) # Increased Size
+        c.setFillColor(theme_color)     # Changed Color to Theme Color (instead of Black)
         c.drawCentredString(center_x, height - 125*mm, title) 
 
         # Description
@@ -339,6 +359,11 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
         p = Paragraph(desc, style)
         w, h = p.wrap(width - 60*mm, 50*mm)
         p.drawOn(c, (width - w)/2, height - 148*mm) 
+
+        # --- EXTRA DETAILS (Rank, Marks, etc.) ---
+        c.setFont("Helvetica-Bold", 14)
+        c.setFillColor(colors.black)
+        c.drawCentredString(center_x, height - 163*mm, stats_text)
 
         # 4. BOTTOM SECTION
         
@@ -401,9 +426,10 @@ with st.sidebar:
     if len(st.session_state['char_images']) == 7: st.success("✅ Character Images loaded")
 
 col1, col2 = st.columns(2)
-report_header_title = col1.text_input("Main Report Header", f"MONTHLY RESULT REPORT - {datetime.date.today().strftime('%B %Y')}")
-output_filename = col2.text_input("Output Filename", f"Monthly_Report_{datetime.date.today().strftime('%b_%Y')}")
-summary_page_title = st.text_input("Summary Page Title", "SUMMARY & ANALYSIS OF THE MONTH")
+# ✅ UPDATED DEFAULT TEXT
+report_header_title = col1.text_input("Main Report Header", "MB MONTHLY RESULT REPORT - DECEMBER 2025")
+output_filename = col2.text_input("Output Filename", "MB DEC 2025 MONTHLY REPORT & AWARDS")
+summary_page_title = st.text_input("Summary Page Title", "SUMMARY & ANALYSIS OF THE DECEMBER MONTH")
 
 uploaded_files = st.file_uploader("Upload CSV Files", type=['csv'], accept_multiple_files=True)
 
