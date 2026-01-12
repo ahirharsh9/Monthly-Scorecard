@@ -14,6 +14,7 @@ from reportlab.platypus import Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.enums import TA_CENTER
+import numpy as np # Added for median calculation
 
 # ---------------- CONFIG ----------------
 TG_LINK = "https://t.me/MurlidharAcademy"
@@ -52,17 +53,16 @@ CERT_SIGN_X_POS = 235 * mm
 CERT_SIGN_Y_POS = 38 * mm        
 
 # 3. CHARACTER IMAGE SETTINGS (Right Side - Background)
-CERT_CHAR_WIDTH = 78 * mm       # Size (Width)
-CERT_CHAR_HEIGHT = 78 * mm      # Size (Height)
-CERT_CHAR_OPACITY = 1         # Opacity
+CERT_CHAR_WIDTH = 75 * mm       
+CERT_CHAR_HEIGHT = 75 * mm      
+CERT_CHAR_OPACITY = 1         
 
 # 👇👇👇 (અહીંથી પોઝિશન સેટ કરો) 👇👇👇
-CERT_CHAR_MARGIN_RIGHT = 16 * mm   # જમણી બાજુથી કેટલું દૂર રાખવું? (Right Margin)
-CERT_CHAR_MARGIN_TOP = 24 * mm    # ઉપરની બાજુથી કેટલું નીચે રાખવું? (Top Margin)
+CERT_CHAR_MARGIN_RIGHT = 16 * mm   
+CERT_CHAR_MARGIN_TOP = 24 * mm    
 
-# (આ ઓટોમેટિક ગણતરી કરશે, તમારે આમાં ફેરફાર કરવાની જરૂર નથી)
-PAGE_W_MM = 297 # A4 Landscape Width
-PAGE_H_MM = 210 # A4 Landscape Height
+PAGE_W_MM = 297 
+PAGE_H_MM = 210 
 CERT_CHAR_X_POS = (PAGE_W_MM * mm) - CERT_CHAR_WIDTH - CERT_CHAR_MARGIN_RIGHT
 CERT_CHAR_Y_POS = (PAGE_H_MM * mm) - CERT_CHAR_HEIGHT - CERT_CHAR_MARGIN_TOP
 
@@ -83,13 +83,18 @@ COLOR_YELLOW = colors.HexColor("#FFF9C4")
 COLOR_RED = colors.HexColor("#FFCDD2")
 COLOR_SAFFRON = colors.HexColor("#FF9933")
 COLOR_GOLD = colors.HexColor("#B8860B")
-COLOR_AWARD_TITLE = colors.HexColor("#8B0000") # Dark Maroon for Award Title
+COLOR_AWARD_TITLE = colors.HexColor("#8B0000") 
 
-# ✅ SUMMARY COLORS
-SUMMARY_HEADER_COLORS = {
-    "METRIC": colors.HexColor("#1976D2"),            
-    "TOP 5 RANKERS": colors.HexColor("#2E7D32"),     
-    "BOTTOM 3 (NEEDS IMPROVEMENT)": colors.HexColor("#C62828") 
+# ✅ SUMMARY COLORS (Updated based on image)
+SUMMARY_COLORS = {
+    "METRIC_HEADER": colors.HexColor("#0070C0"), # Blue
+    "TEST_HEADER": colors.HexColor("#7030A0"),   # Purple
+    "TOP_HEADER": colors.HexColor("#00B050"),    # Green
+    "BOTTOM_HEADER": colors.HexColor("#C00000"), # Red
+    "ROW_YELLOW": colors.HexColor("#FFF2CC"),
+    "ROW_GREEN": colors.HexColor("#E2EFDA"),
+    "ROW_RED": colors.HexColor("#FCE4D6"),
+    "ROW_WHITE": colors.white
 }
 
 # ---------------- HELPERS ----------------
@@ -108,24 +113,14 @@ def download_image_from_drive(file_id):
     except:
         return None
 
-# ✅ HELPER: PROCESS IMAGE FOR OPACITY (WATERMARK)
 def get_transparent_image_reader(img_bytes, opacity=0.5):
-    """
-    Reads an image, converts to RGBA, applies opacity to Alpha channel,
-    and returns an ImageReader object for ReportLab.
-    """
     if not img_bytes: return None
     try:
         img_bytes.seek(0)
         img = Image.open(img_bytes).convert("RGBA")
-        
-        # Adjust Alpha Channel
         r, g, b, alpha = img.split()
-        # Evaluate alpha: multiply current alpha by opacity factor
         alpha = alpha.point(lambda p: int(p * opacity))
         img.putalpha(alpha)
-        
-        # Save to buffer
         new_buffer = io.BytesIO()
         img.save(new_buffer, format='PNG')
         new_buffer.seek(0)
@@ -147,17 +142,14 @@ def find_name_series(df):
         fn = df[cols[lc.index('firstname')]].astype(str).fillna("")
         ln = df[cols[lc.index('lastname')]].astype(str).fillna("")
         return (fn.str.strip() + " " + ln.str.strip()).astype(str)
-     
     keywords = ['name','student name','student','full name','studentname', 'candidate']
     for key in keywords:
         for c in cols:
             if key == c.lower().strip():
                 return df[c].astype(str).fillna("").str.strip()
-     
     for c in cols:
         if 'name' in c.lower() or 'student' in c.lower():
             return df[c].astype(str).fillna("").str.strip()
-             
     return pd.Series([f"Student {i+1}" for i in range(len(df))])
 
 def find_possible_pts(df):
@@ -178,18 +170,15 @@ def extract_obtained_series(df):
         clean = c.lower().replace(" ", "")
         if 'earnedpts' in clean or 'obtainedmarks' in clean or 'score' == clean:
             return pd.to_numeric(df[c], errors='coerce').fillna(0).astype(float)
-             
     numeric_candidates = []
     for c in cols:
         if 'phone' in c.lower() or 'id' in c.lower() or 'roll' in c.lower(): continue
         s = pd.to_numeric(df[c], errors='coerce')
         if s.notna().sum() > 0:
             numeric_candidates.append((c, s.mean()))
-     
     if numeric_candidates:
         numeric_candidates.sort(key=lambda x: x[1], reverse=True)
         return pd.to_numeric(df[numeric_candidates[0][0]], errors='coerce').fillna(0).astype(float)
-        
     return pd.Series(0.0, index=df.index)
 
 def get_smart_row_color(pct, is_even_row, t_green, t_yellow):
@@ -199,7 +188,7 @@ def get_smart_row_color(pct, is_even_row, t_green, t_yellow):
         return colors.HexColor("#FFFDE7") if is_even_row else colors.HexColor("#FFF9C4")
     return colors.HexColor("#FFEBEE") if is_even_row else colors.HexColor("#FFCDD2")
 
-# ---------------- CERTIFICATE GENERATOR FUNCTION ----------------
+# ---------------- CERTIFICATE GENERATOR ----------------
 def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title, cert_date, logo_bytes, sign_bytes, char_images_bytes):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=landscape(A4))
@@ -208,213 +197,129 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
     logo_img = ImageReader(Image.open(logo_bytes)) if logo_bytes else None
     sign_img = ImageReader(Image.open(sign_bytes)) if sign_bytes else None
 
-    # Pre-process Character Images with Opacity
     char_readers = {}
     for key, val_bytes in char_images_bytes.items():
         if val_bytes:
-            # Apply Opacity
             reader = get_transparent_image_reader(val_bytes, opacity=CERT_CHAR_OPACITY)
-            if reader:
-                char_readers[key] = reader
+            if reader: char_readers[key] = reader
 
     awards_to_give = [] 
 
-    # --- AWARD LOGIC ---
-    # Helper to create stats string
     def make_stats(row):
         return f"Rank: {row['Rank']}  |  Tests: {row['Present']}/{row['Total Tests']}  |  Score: {row['Obtained']}/{row['Total Marks']} ({row['Percentage']}%)"
 
     rank1 = out_df[out_df['Rank'] == 1]
     for _, r in rank1.iterrows():
-        desc = (
-            "Like the legendary King Vikramaditya, known for his wisdom and victory, "
-            "you have conquered this challenge with supreme excellence! "
-            f"Your hard work has placed you at the very top. Keep ruling!"
-        )
+        desc = ("Like the legendary King Vikramaditya, known for his wisdom and victory, you have conquered this challenge with supreme excellence! Your hard work has placed you at the very top. Keep ruling!")
         awards_to_give.append((r['Name'], "THE VIKRAMADITYA EXCELLENCE AWARD", desc, COLOR_GOLD, "VIKRAMADITYA", make_stats(r)))
 
     rank2 = out_df[out_df['Rank'] == 2]
     for _, r in rank2.iterrows():
-        desc = (
-            "With the sharp intellect of Acharya Chanakya, you have proven that strategy determines success. "
-            f"Your outstanding intelligence and dedication have secured you the prestigious 2nd Rank."
-        )
+        desc = ("With the sharp intellect of Acharya Chanakya, you have proven that strategy determines success. Your outstanding intelligence and dedication have secured you the prestigious 2nd Rank.")
         awards_to_give.append((r['Name'], "THE CHANAKYA NITI AWARD", desc, COLOR_BLUE_HEADER, "CHANAKYA", make_stats(r)))
 
     rank3 = out_df[out_df['Rank'] == 3]
     for _, r in rank3.iterrows():
-        desc = (
-            "Just like Arjuna saw only the bird's eye, your laser-sharp focus and precision have hit the mark! "
-            f"This award celebrates your unwavering concentration and excellent performance (Rank 3)."
-        )
+        desc = ("Just like Arjuna saw only the bird's eye, your laser-sharp focus and precision have hit the mark! This award celebrates your unwavering concentration and excellent performance (Rank 3).")
         awards_to_give.append((r['Name'], "THE ARJUNA FOCUS AWARD", desc, COLOR_SAFFRON, "ARJUNA", make_stats(r)))
 
     rank45 = out_df[out_df['Rank'].isin([4, 5])]
     for _, r in rank45.iterrows():
-        desc = (
-            "Like the eternal Dhruva Tara (Pole Star), your performance shines bright with stability and consistency. "
-            f"You are a rising star with immense potential to lead the sky!"
-        )
+        desc = ("Like the eternal Dhruva Tara (Pole Star), your performance shines bright with stability and consistency. You are a rising star with immense potential to lead the sky!")
         awards_to_give.append((r['Name'], "THE DHRUVA TARA AWARD", desc, COLOR_BLUE_HEADER, "DHRUVA", make_stats(r)))
 
     rank6_10 = out_df[out_df['Rank'].isin([6,7,8,9,10])]
     for _, r in rank6_10.iterrows():
-        desc = (
-            "A true warrior is defined by their spirit! Like Maharathi Karna, you fought bravely and showed immense talent. "
-            f"You are just steps away from the top. Keep fighting, victory is yours!"
-        )
+        desc = ("A true warrior is defined by their spirit! Like Maharathi Karna, you fought bravely and showed immense talent. You are just steps away from the top. Keep fighting, victory is yours!")
         awards_to_give.append((r['Name'], "THE KARNA VEERTA AWARD", desc, COLOR_SAFFRON, "KARNA", make_stats(r)))
 
-    # --- UPDATED: ANGAD (TOP 5 + TIES) ---
-    angad_candidates = out_df[(out_df['Absent'] == 0) & (out_df['Percentage'] >= thresh_yellow) & (out_df['Rank'] > 10)]
-    # Sort by Obtained Marks Descending
-    angad_candidates = angad_candidates.sort_values(by='Obtained', ascending=False)
-    # Logic: Take top 5, but if there's a tie at the 5th position, include them too.
+    angad_candidates = out_df[(out_df['Absent'] == 0) & (out_df['Percentage'] >= thresh_yellow) & (out_df['Rank'] > 10)].sort_values(by='Obtained', ascending=False)
     if len(angad_candidates) > 5:
         cutoff_val = angad_candidates.iloc[4]['Obtained']
         angad_candidates = angad_candidates[angad_candidates['Obtained'] >= cutoff_val]
 
     for _, r in angad_candidates.iterrows():
-        desc = (
-            "Firm as Angad's foot in Ravana's court! Your unshakeable discipline and 100% Attendance prove that consistency is the key to success. "
-            "You stood firm in every test!"
-        )
+        desc = ("Firm as Angad's foot in Ravana's court! Your unshakeable discipline and 100% Attendance prove that consistency is the key to success. You stood firm in every test!")
         awards_to_give.append((r['Name'], "THE ANGAD STAMBH AWARD", desc, COLOR_BLUE_HEADER, "ANGAD", make_stats(r)))
 
-    # --- UPDATED: BHAGIRATH (TOP 5 + TIES) ---
-    bhagirath_candidates = out_df[
-        (out_df['Percentage'] >= thresh_yellow) & (out_df['Percentage'] < thresh_green) &
-        (out_df['Present'] / out_df['Total Tests'] >= 0.8) & (out_df['Rank'] > 10) & (out_df['Absent'] > 0)
-    ]
-    # Sort by Obtained Marks Descending
-    bhagirath_candidates = bhagirath_candidates.sort_values(by='Obtained', ascending=False)
-    # Logic: Take top 5, but if there's a tie at the 5th position, include them too.
+    bhagirath_candidates = out_df[(out_df['Percentage'] >= thresh_yellow) & (out_df['Percentage'] < thresh_green) & (out_df['Present'] / out_df['Total Tests'] >= 0.8) & (out_df['Rank'] > 10) & (out_df['Absent'] > 0)].sort_values(by='Obtained', ascending=False)
     if len(bhagirath_candidates) > 5:
         cutoff_val = bhagirath_candidates.iloc[4]['Obtained']
         bhagirath_candidates = bhagirath_candidates[bhagirath_candidates['Obtained'] >= cutoff_val]
 
     for _, r in bhagirath_candidates.iterrows():
-        desc = (
-            "Like Bhagirath's relentless penance to bring Ganga to Earth, your hard work and persistence are truly inspiring. "
-            "This award honors your 'Never Give Up' attitude and continuous improvement."
-        )
+        desc = ("Like Bhagirath's relentless penance to bring Ganga to Earth, your hard work and persistence are truly inspiring. This award honors your 'Never Give Up' attitude and continuous improvement.")
         awards_to_give.append((r['Name'], "THE BHAGIRATH PRAYAS AWARD", desc, COLOR_SAFFRON, "BHAGIRATH", make_stats(r)))
 
-    # DRAWING CERTIFICATES
     for student_name, title, desc, theme_color, char_key, stats_text in awards_to_give:
-        
-        # 1. DRAW CHARACTER IMAGE FIRST (BACKGROUND)
         if char_key in char_readers:
             char_img = char_readers[char_key]
             c.drawImage(char_img, CERT_CHAR_X_POS, CERT_CHAR_Y_POS, width=CERT_CHAR_WIDTH, height=CERT_CHAR_HEIGHT, mask='auto', preserveAspectRatio=True)
 
-        # 2. DRAW BORDERS (On top of character)
         c.setStrokeColor(theme_color)
         c.setLineWidth(5); c.rect(15*mm, 15*mm, width-30*mm, height-30*mm)
         c.setLineWidth(1); c.rect(18*mm, 18*mm, width-36*mm, height-36*mm)
 
-        # 3. HEADER SECTION
         center_x = width / 2
-        
-        # LOGO
-        if logo_img:
-            c.drawImage(logo_img, CERT_LOGO_X_POS, CERT_LOGO_Y_POS, width=CERT_LOGO_WIDTH, height=CERT_LOGO_HEIGHT, mask='auto', preserveAspectRatio=True)
+        if logo_img: c.drawImage(logo_img, CERT_LOGO_X_POS, CERT_LOGO_Y_POS, width=CERT_LOGO_WIDTH, height=CERT_LOGO_HEIGHT, mask='auto', preserveAspectRatio=True)
 
-        # Header Text
-        c.setFont("Helvetica-Bold", 32)
-        c.setFillColor(COLOR_BLUE_HEADER)
+        c.setFont("Helvetica-Bold", 32); c.setFillColor(COLOR_BLUE_HEADER)
         c.drawCentredString(center_x, height - 52*mm, "MURLIDHAR ACADEMY")
         
-        c.setFont("Helvetica", 12)
-        c.setFillColor(colors.black)
+        c.setFont("Helvetica", 12); c.setFillColor(colors.black)
         c.drawCentredString(center_x, height - 60*mm, "JUNAGADH")
 
-        # Titles
-        c.setFont("Helvetica-Oblique", 18)
-        c.setFillColor(colors.black)
+        c.setFont("Helvetica-Oblique", 18); c.setFillColor(colors.black)
         c.drawCentredString(center_x, height - 72*mm, "Certificate of Achievement")
 
-        # Main Result Title
-        c.setFont("Helvetica-Bold", 14)
-        c.setFillColor(colors.darkgrey)
+        c.setFont("Helvetica-Bold", 14); c.setFillColor(colors.darkgrey)
         c.drawCentredString(center_x, height - 82*mm, f"For: {report_title}")
 
-        c.setFont("Helvetica", 12)
-        c.setFillColor(colors.gray)
+        c.setFont("Helvetica", 12); c.setFillColor(colors.gray)
         c.drawCentredString(center_x, height - 92*mm, "This is proudly presented to")
 
-        # Student Name
-        c.setFont("Helvetica-Bold", 32)
-        c.setFillColor(theme_color)
+        c.setFont("Helvetica-Bold", 32); c.setFillColor(theme_color)
         c.drawCentredString(center_x, height - 106*mm, student_name.upper()) 
         c.setStrokeColor(colors.black); c.setLineWidth(0.5)
         c.line(center_x - 60*mm, height - 109*mm, center_x + 60*mm, height - 109*mm)
 
-        # Award Title - HIGHLIGHTED AS REQUESTED
-        c.setFont("Times-Bold", 30)   # Changed Font to Times-Bold (Serif)
-        c.setFillColor(COLOR_AWARD_TITLE) # Changed Color to Dark Maroon
+        c.setFont("Times-Bold", 30); c.setFillColor(COLOR_AWARD_TITLE)
         c.drawCentredString(center_x, height - 125*mm, title) 
 
-        # Description
         style = ParagraphStyle('Desc', parent=getSampleStyleSheet()['Normal'], fontName='Helvetica', fontSize=13, leading=16, alignment=TA_CENTER, textColor=colors.darkgray)
-        p = Paragraph(desc, style)
-        w, h = p.wrap(width - 60*mm, 50*mm)
+        p = Paragraph(desc, style); w, h = p.wrap(width - 60*mm, 50*mm)
         p.drawOn(c, (width - w)/2, height - 148*mm) 
 
-        # --- EXTRA DETAILS (Rank, Marks, etc.) ---
-        c.setFont("Helvetica-Bold", 14)
-        c.setFillColor(colors.black)
+        c.setFont("Helvetica-Bold", 14); c.setFillColor(colors.black)
         c.drawCentredString(center_x, height - 163*mm, stats_text)
 
-        # 4. BOTTOM SECTION
-        
-        # DATE
-        c.setFont("Helvetica-Bold", 12)
-        c.setFillColor(colors.black)
+        c.setFont("Helvetica-Bold", 12); c.setFillColor(colors.black)
         c.drawString(30*mm, 35*mm, f"Date: {cert_date}")
         
-        # SIGNATURE BLOCK
         if sign_img:
             img_x = CERT_SIGN_X_POS - (CERT_SIGN_WIDTH / 2)
             c.drawImage(sign_img, img_x, CERT_SIGN_Y_POS, width=CERT_SIGN_WIDTH, height=CERT_SIGN_HEIGHT, mask='auto', preserveAspectRatio=True)
 
-        line_width = 50*mm
-        line_start_x = CERT_SIGN_X_POS - (line_width / 2)
-        line_end_x = CERT_SIGN_X_POS + (line_width / 2)
-        line_y = 35*mm
-        
-        c.setLineWidth(1)
-        c.setStrokeColor(colors.black)
-        c.line(line_start_x, line_y, line_end_x, line_y)
-        
+        line_width = 50*mm; line_start_x = CERT_SIGN_X_POS - (line_width / 2); line_end_x = CERT_SIGN_X_POS + (line_width / 2); line_y = 35*mm
+        c.setLineWidth(1); c.setStrokeColor(colors.black); c.line(line_start_x, line_y, line_end_x, line_y)
         c.drawCentredString(CERT_SIGN_X_POS, 29*mm, "Director Signature")
-
         c.showPage()
-
-    c.save()
-    buffer.seek(0)
+    c.save(); buffer.seek(0)
     return buffer
 
 # ---------------- STREAMLIT UI ----------------
 st.set_page_config(page_title="Murlidhar Academy Report System", page_icon="🎓", layout="centered")
 st.title("🎓 Murlidhar Academy Report System")
 
-# Load Main Images
-if 'default_bg_data' not in st.session_state:
-    st.session_state['default_bg_data'] = download_image_from_drive(DEFAULT_DRIVE_ID)
-if 'logo_data' not in st.session_state:
-    st.session_state['logo_data'] = download_image_from_drive(LOGO_ID)
-if 'sign_data' not in st.session_state:
-    st.session_state['sign_data'] = download_image_from_drive(SIGNATURE_ID)
-
-# Load Character Images
+if 'default_bg_data' not in st.session_state: st.session_state['default_bg_data'] = download_image_from_drive(DEFAULT_DRIVE_ID)
+if 'logo_data' not in st.session_state: st.session_state['logo_data'] = download_image_from_drive(LOGO_ID)
+if 'sign_data' not in st.session_state: st.session_state['sign_data'] = download_image_from_drive(SIGNATURE_ID)
 if 'char_images' not in st.session_state:
     st.session_state['char_images'] = {}
     with st.spinner("Downloading Award Character Images..."):
         for name, file_id in CHAR_IDS.items():
             img_data = download_image_from_drive(file_id)
-            if img_data:
-                st.session_state['char_images'][name] = img_data
+            if img_data: st.session_state['char_images'][name] = img_data
 
 with st.sidebar:
     st.header("🎨 Settings")
@@ -427,7 +332,6 @@ with st.sidebar:
     if len(st.session_state['char_images']) == 7: st.success("✅ Character Images loaded")
 
 col1, col2 = st.columns(2)
-# ✅ UPDATED DEFAULT TEXT
 report_header_title = col1.text_input("Main Report Header", "MB MONTHLY RESULT REPORT - DECEMBER 2025")
 output_filename = col2.text_input("Output Filename", "MB DEC 2025 MONTHLY REPORT & AWARDS")
 summary_page_title = st.text_input("Summary Page Title", "SUMMARY & ANALYSIS OF THE DECEMBER MONTH")
@@ -436,7 +340,10 @@ uploaded_files = st.file_uploader("Upload CSV Files", type=['csv'], accept_multi
 
 if uploaded_files:
     per_file_data = []
-    for uploaded_file in uploaded_files:
+    # Collect data for per-test analysis later
+    test_analysis_data = [] 
+
+    for i, uploaded_file in enumerate(uploaded_files):
         try:
             uploaded_file.seek(0)
             df = pd.read_csv(uploaded_file)
@@ -446,6 +353,16 @@ if uploaded_files:
             if file_max is None:
                 file_max = obtained.max() if not obtained.empty else DEFAULT_TEST_MAX_PER_FILE
                 if file_max == 0: file_max = DEFAULT_TEST_MAX_PER_FILE
+            
+            # For per test average calculation
+            avg_score_this_test = obtained.mean() if not obtained.empty else 0.0
+            test_name = uploaded_file.name.replace(".csv", "").replace("_", " ").title()
+            test_analysis_data.append({
+                "Test Name": test_name,
+                "Avg Score": avg_score_this_test,
+                "Max Score": file_max
+            })
+
             name_map = {}
             present_set = set()
             for n, score in zip(names, obtained):
@@ -511,6 +428,7 @@ if uploaded_files:
                         c.linkURL(TG_LINK, (20*mm, 24*mm, 106*mm, 45*mm))
                         c.linkURL(IG_LINK, (110*mm, 24*mm, 190*mm, 45*mm))
 
+                # --- PAGE 1: FULL RESULT TABLE ---
                 table_header = ["No", "Rank", "Name", "Tests", "Pres", "Abs", "Max", "Obt", "%"]
                 TABLE_WIDTH = PAGE_W - (LEFT_MARGIN_mm * mm) - (RIGHT_MARGIN_mm * mm)
                 col_widths = [0.06*TABLE_WIDTH, 0.07*TABLE_WIDTH, 0.35*TABLE_WIDTH, 0.08*TABLE_WIDTH, 0.07*TABLE_WIDTH, 0.07*TABLE_WIDTH, 0.10*TABLE_WIDTH, 0.10*TABLE_WIDTH, 0.10*TABLE_WIDTH]
@@ -547,41 +465,115 @@ if uploaded_files:
                     c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {p+1}/{total_pages_approx}")
                     add_social_links(c); c.showPage()
 
-                # Summary
+                # --- PAGE 2: SUMMARY (UPDATED) ---
                 draw_bg_and_header(c, summary_page_title)
-                avg_obt = out_df['Obtained'].mean()
-                pass_count = len(out_df[out_df['Percentage'] >= thresh_yellow])
-                summary_data = [
-                    ["METRIC", "VALUE", "REMARK"],
-                    ["Total Candidates", str(len(out_df)), "Unique students appearing"],
-                    ["Total Tests", str(total_tests_count), "Number of CSVs processed"],
-                    ["Batch Average", f"{avg_obt:.2f}", "Overall class performance"],
-                    ["Highest Score", f"{out_df['Obtained'].max()}", "Top ranker score"],
-                    ["Pass Candidates", f"{pass_count}", f">={thresh_yellow}% Score"],
-                    ["TOP 5 RANKERS", "", ""],
-                ]
-                for i, r in out_df.head(5).iterrows(): summary_data.append([f"Rank {r['Rank']}", r['Name'], f"{r['Obtained']}/{total_max_marks} ({r['Percentage']}%)"])
-                summary_data.append(["BOTTOM 3 (NEEDS IMPROVEMENT)", "", ""])
-                for i, r in out_df.tail(3).sort_values(by='Obtained').iterrows(): summary_data.append([f"Rank {r['Rank']}", r['Name'], f"{r['Obtained']}/{total_max_marks} ({r['Percentage']}%)"])
                 
-                st_table = Table(summary_data, colWidths=[0.25*TABLE_WIDTH, 0.25*TABLE_WIDTH, 0.50*TABLE_WIDTH])
+                # Calculations for Summary
+                avg_obt = out_df['Obtained'].mean()
+                median_obt = out_df['Obtained'].median()
+                highest_score = out_df['Obtained'].max()
+                lowest_score = out_df['Obtained'].min()
+                pass_count = len(out_df[out_df['Percentage'] >= thresh_yellow])
+                fail_count = len(out_df) - pass_count
+                overall_result = (pass_count / len(out_df) * 100) if len(out_df) > 0 else 0.0
+
+                # Data Structure for new Table
+                summary_data = [
+                    ["METRICS", "DETAILS", "REMARKS"], # Header
+                    ["Total Candidates", str(len(out_df)), "Total Appearing"],
+                    ["Batch Average", f"{avg_obt:.2f} / {total_max_marks}", "Overall Class Performance"],
+                    ["Median Score", f"{median_obt:.2f} / {total_max_marks}", "Middle Score of Batch"],
+                    ["Highest Score", f"{highest_score} / {total_max_marks}", "Top Rank Score"],
+                    ["Lowest Score", f"{lowest_score} / {total_max_marks}", "Lowest Score"],
+                    ["Qualified (>=40%)", str(pass_count), "Candidates Passed"],
+                    ["Disqualified (<40%)", str(fail_count), "Candidates Failed"],
+                    ["Overall Result", f"{overall_result:.1f}%", "Pass Percentage"],
+                    
+                    ["TEST PERFORMANCES (SUBJECT AVERAGES)", "", ""], # Section Header
+                ]
+                
+                # Add Test Averages
+                for t_data in test_analysis_data:
+                    summary_data.append([t_data["Test Name"], f"{t_data['Avg Score']:.2f} / {t_data['Max Score']}", "Avg. Subject Performance"])
+
+                # Top 5
+                summary_data.append(["TOP 5 RANKERS", "", ""])
+                for i, r in out_df.head(5).iterrows():
+                    summary_data.append([f"#{r['Rank']} {r['Name']}", f"{r['Obtained']}/{total_max_marks} ({r['Percentage']}%)", "Outstanding" if i==0 else "Excellent"])
+
+                # Bottom 5 (Changed from 3 to 5 to match image)
+                summary_data.append(["BOTTOM 5 PERFORMERS", "", ""])
+                for i, r in out_df.tail(5).sort_values(by='Obtained').iterrows():
+                    summary_data.append([f"#{r['Rank']} {r['Name']}", f"{r['Obtained']}/{total_max_marks} ({r['Percentage']}%)", "Needs Hard Work"])
+                
+                st_table = Table(summary_data, colWidths=[0.35*TABLE_WIDTH, 0.25*TABLE_WIDTH, 0.40*TABLE_WIDTH])
+                
+                # Dynamic Styling
                 sum_style = TableStyle([
-                    ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")), ('BACKGROUND', (0,0), (-1,0), COLOR_BLUE_HEADER),
+                    ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor("#666666")),
                     ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONT', (0,0), (-1,0), 'Helvetica-Bold'),
                     ('ALIGN', (0,0), (-1,-1), 'LEFT'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')
                 ])
+
+                # Apply Row Colors based on content
                 for i, row in enumerate(summary_data):
-                    if i==0: continue
-                    sum_style.add('BACKGROUND', (0,i), (-1,i), colors.Color(0.96,0.97,1.0) if i%2==0 else colors.white)
-                    if row[0] == "TOP 5 RANKERS": sum_style.add('BACKGROUND', (0,i), (-1,i), SUMMARY_HEADER_COLORS["TOP 5 RANKERS"]); sum_style.add('TEXTCOLOR', (0,i), (-1,i), colors.white)
-                    elif row[0] == "BOTTOM 3 (NEEDS IMPROVEMENT)": sum_style.add('BACKGROUND', (0,i), (-1,i), SUMMARY_HEADER_COLORS["BOTTOM 3 (NEEDS IMPROVEMENT)"]); sum_style.add('TEXTCOLOR', (0,i), (-1,i), colors.white)
+                    section_header = row[0]
+                    
+                    if i == 0: # Main Table Header
+                         sum_style.add('BACKGROUND', (0,i), (-1,i), SUMMARY_COLORS["METRIC_HEADER"])
+                    
+                    elif section_header == "TEST PERFORMANCES (SUBJECT AVERAGES)":
+                        sum_style.add('BACKGROUND', (0,i), (-1,i), SUMMARY_COLORS["TEST_HEADER"])
+                        sum_style.add('TEXTCOLOR', (0,i), (-1,i), colors.white)
+                        sum_style.add('FONT', (0,i), (-1,i), 'Helvetica-Bold')
+                        sum_style.add('SPAN', (0,i), (-1,i)) # Span across columns
+
+                    elif section_header == "TOP 5 RANKERS":
+                        sum_style.add('BACKGROUND', (0,i), (-1,i), SUMMARY_COLORS["TOP_HEADER"])
+                        sum_style.add('TEXTCOLOR', (0,i), (-1,i), colors.white)
+                        sum_style.add('FONT', (0,i), (-1,i), 'Helvetica-Bold')
+                        sum_style.add('SPAN', (0,i), (-1,i))
+
+                    elif section_header == "BOTTOM 5 PERFORMERS":
+                        sum_style.add('BACKGROUND', (0,i), (-1,i), SUMMARY_COLORS["BOTTOM_HEADER"])
+                        sum_style.add('TEXTCOLOR', (0,i), (-1,i), colors.white)
+                        sum_style.add('FONT', (0,i), (-1,i), 'Helvetica-Bold')
+                        sum_style.add('SPAN', (0,i), (-1,i))
+                    
+                    else:
+                        # Data Rows Coloring
+                        bg_color = colors.white
+                        
+                        # Metrics Section coloring
+                        if "Batch Average" in section_header: bg_color = SUMMARY_COLORS["ROW_YELLOW"]
+                        elif "Highest Score" in section_header: bg_color = SUMMARY_COLORS["ROW_GREEN"]
+                        elif "Lowest Score" in section_header: bg_color = SUMMARY_COLORS["ROW_RED"]
+                        
+                        # Test Rows (after Test Header, before Top Header)
+                        # We can identify them if previous header was TEST PERFORMANCES
+                        # But simpler logic:
+                        elif "Avg. Subject Performance" in row[2]:
+                             bg_color = SUMMARY_COLORS["ROW_RED"] if float(row[1].split('/')[0]) < 10 else SUMMARY_COLORS["ROW_RED"] # Just default nice color
+                             bg_color = colors.Color(0.96, 0.96, 0.96) # Light Grey for tests
+
+                        # Top Rankers Coloring
+                        elif "Outstanding" in row[2] or "Excellent" in row[2]:
+                            bg_color = SUMMARY_COLORS["ROW_GREEN"]
+
+                        # Bottom Performers Coloring
+                        elif "Needs Hard Work" in row[2]:
+                            bg_color = SUMMARY_COLORS["ROW_YELLOW"] # Light yellow for bottom list
+                        
+                        sum_style.add('BACKGROUND', (0,i), (-1,i), bg_color)
+                        sum_style.add('TEXTCOLOR', (0,i), (-1,i), colors.black)
+
                 st_table.setStyle(sum_style); w, h = st_table.wrapOn(c, TABLE_WIDTH, PAGE_H)
                 st_table.drawOn(c, (PAGE_W - TABLE_WIDTH)/2, TABLE_TOP_Y - h)
                 c.setFont("Helvetica-Bold", 8); c.setFillColor(colors.white)
                 c.drawRightString(PAGE_W - (RIGHT_MARGIN_mm*mm), PAGE_NO_Y_mm*mm, f"Page {total_pages_approx-1}/{total_pages_approx}")
                 add_social_links(c); c.showPage()
 
-                # Hall of Fame
+                # --- PAGE 3: HALL OF FAME ---
                 draw_bg_and_header(c, "HALL OF FAME")
                 styles = getSampleStyleSheet()
                 style_an = ParagraphStyle('AN', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.black, alignment=1)
@@ -626,15 +618,11 @@ if uploaded_files:
                 if not final_pdf.endswith('.pdf'): final_pdf += ".pdf"
                 st.download_button(label=f"📥 Download {final_pdf}", data=buffer, file_name=final_pdf, mime="application/pdf")
 
-        # --- BUTTON 2: CERTIFICATES ---
         if col_btn2.button("🏆 Generate Certificates PDF", type="secondary"):
             with st.spinner("Generating Certificates..."):
                 logo_bytes = st.session_state['logo_data'] if 'logo_data' in st.session_state else None
                 sign_bytes = st.session_state['sign_data'] if 'sign_data' in st.session_state else None
-                
-                # Pass the character images dict
                 char_images = st.session_state['char_images'] if 'char_images' in st.session_state else {}
-
                 cert_buffer = generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_header_title, cert_date_input, logo_bytes, sign_bytes, char_images)
                 cert_name = f"Certificates_{output_filename.strip()}.pdf"
                 st.download_button(label=f"📥 Download Certificates", data=cert_buffer, file_name=cert_name, mime="application/pdf")
