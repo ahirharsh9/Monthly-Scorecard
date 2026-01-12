@@ -54,7 +54,7 @@ CERT_SIGN_Y_POS = 38 * mm
 # 3. CHARACTER IMAGE SETTINGS (Right Side - Background)
 CERT_CHAR_WIDTH = 78 * mm       # Size (Width)
 CERT_CHAR_HEIGHT = 78 * mm      # Size (Height)
-CERT_CHAR_OPACITY = 1         # Opacity (0.35 is perfect as per your request)
+CERT_CHAR_OPACITY = 1         # Opacity
 
 # 👇👇👇 (અહીંથી પોઝિશન સેટ કરો) 👇👇👇
 CERT_CHAR_MARGIN_RIGHT = 16 * mm   # જમણી બાજુથી કેટલું દૂર રાખવું? (Right Margin)
@@ -83,6 +83,7 @@ COLOR_YELLOW = colors.HexColor("#FFF9C4")
 COLOR_RED = colors.HexColor("#FFCDD2")
 COLOR_SAFFRON = colors.HexColor("#FF9933")
 COLOR_GOLD = colors.HexColor("#B8860B")
+COLOR_AWARD_TITLE = colors.HexColor("#8B0000") # Dark Maroon for Award Title
 
 # ✅ SUMMARY COLORS
 SUMMARY_HEADER_COLORS = {
@@ -350,8 +351,8 @@ def generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_title,
         c.line(center_x - 60*mm, height - 109*mm, center_x + 60*mm, height - 109*mm)
 
         # Award Title - HIGHLIGHTED AS REQUESTED
-        c.setFont("Helvetica-Bold", 26) # Increased Size
-        c.setFillColor(theme_color)     # Changed Color to Theme Color (instead of Black)
+        c.setFont("Times-Bold", 30)   # Changed Font to Times-Bold (Serif)
+        c.setFillColor(COLOR_AWARD_TITLE) # Changed Color to Dark Maroon
         c.drawCentredString(center_x, height - 125*mm, title) 
 
         # Description
