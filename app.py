@@ -14,7 +14,7 @@ from reportlab.platypus import Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.enums import TA_CENTER
-import numpy as np # Added for median calculation
+import numpy as np 
 
 # ---------------- CONFIG ----------------
 TG_LINK = "https://t.me/MurlidharAcademy"
@@ -41,8 +41,8 @@ CHAR_IDS = {
 # ==========================================
 
 # 1. LOGO SETTINGS (Left Side)
-CERT_LOGO_WIDTH = 40 * mm        
-CERT_LOGO_HEIGHT = 40 * mm       
+CERT_LOGO_WIDTH = 42 * mm        
+CERT_LOGO_HEIGHT = 42 * mm       
 CERT_LOGO_X_POS = 36 * mm        
 CERT_LOGO_Y_POS = 143 * mm       
 
@@ -53,8 +53,8 @@ CERT_SIGN_X_POS = 235 * mm
 CERT_SIGN_Y_POS = 38 * mm        
 
 # 3. CHARACTER IMAGE SETTINGS (Right Side - Background)
-CERT_CHAR_WIDTH = 75 * mm       
-CERT_CHAR_HEIGHT = 75 * mm      
+CERT_CHAR_WIDTH = 74 * mm       
+CERT_CHAR_HEIGHT = 74 * mm      
 CERT_CHAR_OPACITY = 1         
 
 # 👇👇👇 (અહીંથી પોઝિશન સેટ કરો) 👇👇👇
@@ -85,10 +85,9 @@ COLOR_SAFFRON = colors.HexColor("#FF9933")
 COLOR_GOLD = colors.HexColor("#B8860B")
 COLOR_AWARD_TITLE = colors.HexColor("#8B0000") 
 
-# ✅ SUMMARY COLORS (Updated based on image)
+# ✅ SUMMARY COLORS
 SUMMARY_COLORS = {
     "METRIC_HEADER": colors.HexColor("#0070C0"), # Blue
-    "TEST_HEADER": colors.HexColor("#7030A0"),   # Purple
     "TOP_HEADER": colors.HexColor("#00B050"),    # Green
     "BOTTOM_HEADER": colors.HexColor("#C00000"), # Red
     "ROW_YELLOW": colors.HexColor("#FFF2CC"),
@@ -340,9 +339,7 @@ uploaded_files = st.file_uploader("Upload CSV Files", type=['csv'], accept_multi
 
 if uploaded_files:
     per_file_data = []
-    # Collect data for per-test analysis later
-    test_analysis_data = [] 
-
+    
     for i, uploaded_file in enumerate(uploaded_files):
         try:
             uploaded_file.seek(0)
@@ -354,15 +351,6 @@ if uploaded_files:
                 file_max = obtained.max() if not obtained.empty else DEFAULT_TEST_MAX_PER_FILE
                 if file_max == 0: file_max = DEFAULT_TEST_MAX_PER_FILE
             
-            # For per test average calculation
-            avg_score_this_test = obtained.mean() if not obtained.empty else 0.0
-            test_name = uploaded_file.name.replace(".csv", "").replace("_", " ").title()
-            test_analysis_data.append({
-                "Test Name": test_name,
-                "Avg Score": avg_score_this_test,
-                "Max Score": file_max
-            })
-
             name_map = {}
             present_set = set()
             for n, score in zip(names, obtained):
@@ -488,20 +476,14 @@ if uploaded_files:
                     ["Qualified (>=40%)", str(pass_count), "Candidates Passed"],
                     ["Disqualified (<40%)", str(fail_count), "Candidates Failed"],
                     ["Overall Result", f"{overall_result:.1f}%", "Pass Percentage"],
-                    
-                    ["TEST PERFORMANCES (SUBJECT AVERAGES)", "", ""], # Section Header
                 ]
                 
-                # Add Test Averages
-                for t_data in test_analysis_data:
-                    summary_data.append([t_data["Test Name"], f"{t_data['Avg Score']:.2f} / {t_data['Max Score']}", "Avg. Subject Performance"])
-
                 # Top 5
                 summary_data.append(["TOP 5 RANKERS", "", ""])
                 for i, r in out_df.head(5).iterrows():
                     summary_data.append([f"#{r['Rank']} {r['Name']}", f"{r['Obtained']}/{total_max_marks} ({r['Percentage']}%)", "Outstanding" if i==0 else "Excellent"])
 
-                # Bottom 5 (Changed from 3 to 5 to match image)
+                # Bottom 5 
                 summary_data.append(["BOTTOM 5 PERFORMERS", "", ""])
                 for i, r in out_df.tail(5).sort_values(by='Obtained').iterrows():
                     summary_data.append([f"#{r['Rank']} {r['Name']}", f"{r['Obtained']}/{total_max_marks} ({r['Percentage']}%)", "Needs Hard Work"])
@@ -522,12 +504,6 @@ if uploaded_files:
                     if i == 0: # Main Table Header
                          sum_style.add('BACKGROUND', (0,i), (-1,i), SUMMARY_COLORS["METRIC_HEADER"])
                     
-                    elif section_header == "TEST PERFORMANCES (SUBJECT AVERAGES)":
-                        sum_style.add('BACKGROUND', (0,i), (-1,i), SUMMARY_COLORS["TEST_HEADER"])
-                        sum_style.add('TEXTCOLOR', (0,i), (-1,i), colors.white)
-                        sum_style.add('FONT', (0,i), (-1,i), 'Helvetica-Bold')
-                        sum_style.add('SPAN', (0,i), (-1,i)) # Span across columns
-
                     elif section_header == "TOP 5 RANKERS":
                         sum_style.add('BACKGROUND', (0,i), (-1,i), SUMMARY_COLORS["TOP_HEADER"])
                         sum_style.add('TEXTCOLOR', (0,i), (-1,i), colors.white)
@@ -549,13 +525,6 @@ if uploaded_files:
                         elif "Highest Score" in section_header: bg_color = SUMMARY_COLORS["ROW_GREEN"]
                         elif "Lowest Score" in section_header: bg_color = SUMMARY_COLORS["ROW_RED"]
                         
-                        # Test Rows (after Test Header, before Top Header)
-                        # We can identify them if previous header was TEST PERFORMANCES
-                        # But simpler logic:
-                        elif "Avg. Subject Performance" in row[2]:
-                             bg_color = SUMMARY_COLORS["ROW_RED"] if float(row[1].split('/')[0]) < 10 else SUMMARY_COLORS["ROW_RED"] # Just default nice color
-                             bg_color = colors.Color(0.96, 0.96, 0.96) # Light Grey for tests
-
                         # Top Rankers Coloring
                         elif "Outstanding" in row[2] or "Excellent" in row[2]:
                             bg_color = SUMMARY_COLORS["ROW_GREEN"]
@@ -622,7 +591,7 @@ if uploaded_files:
             with st.spinner("Generating Certificates..."):
                 logo_bytes = st.session_state['logo_data'] if 'logo_data' in st.session_state else None
                 sign_bytes = st.session_state['sign_data'] if 'sign_data' in st.session_state else None
-                char_images = st.session_state['char_images'] if 'char_images' in st.session_state else {}
+                char_images = st.session_state['char_images'] if 'char_images' in st.session_state else None
                 cert_buffer = generate_certificates_pdf(out_df, thresh_yellow, thresh_green, report_header_title, cert_date_input, logo_bytes, sign_bytes, char_images)
                 cert_name = f"Certificates_{output_filename.strip()}.pdf"
                 st.download_button(label=f"📥 Download Certificates", data=cert_buffer, file_name=cert_name, mime="application/pdf")
